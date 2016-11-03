@@ -37,7 +37,7 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
         self.ot_inequality_gradient = None
         # Variables
         self.variables_initial_guess = starting_point or [None] * self.ot_problem.getDimension()
-        self.variables_bounds_ = self.__get_variables_bounds()  # can't be named as variables_bounds
+        self.variables_bounds_ = self.__get_variables_bounds()  # variables_bounds is invalid here
         # GTopt hints
         self.variables_hints = input_hints
         self.objectives_hints = objective_hints
@@ -60,21 +60,38 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
         if use_objectives_gradient:
             self.ot_objectives_gradient = self.ot_objectives.getGradient()
         # Check constraints gradient
-        if use_constraints_gradient:
+        if use_constraints_gradient and self.ot_equality:
             self.ot_equality_gradient = self.ot_equality.getGradient()
+        if use_constraints_gradient and self.ot_inequality:
             self.ot_inequality_gradient = self.ot_inequality.getGradient()
+        # Check Dimensions
+        # Initial guess
+        if not isinstance(self.variables_initial_guess, list):
+            initial_guess_dim = self.variables_initial_guess.getDimension()
+            if self.variables_dim != initial_guess_dim:
+                raise ValueError("Inconsistent problem and initial guess dimension")
+        # Bounds
+        if self.variables_dim != self.ot_problem.getBounds().getDimension():
+            raise ValueError("Inconsistent problem and bounds dimension")
+        # Equality constraints
+        if problem.hasEqualityConstraint():
+            equality_input_dim = self.ot_problem.getEqualityConstraint().getInputDimension()
+            if self.variables_dim != equality_input_dim:
+                raise ValueError("Inconsistent objective and equality constraints dimension")
+        # Inequality constraints
+        if problem.hasInequalityConstraint():
+            inequality_input_dim = self.ot_problem.getInequalityConstraint().getInputDimension()
+            if self.variables_dim != inequality_input_dim:
+                raise ValueError("Inconsistent objective and inequality constraints dimension")
 
     def prepare_problem(self):
         # Add variables
-        variables_names = self.ot_problem.getObjective().getInputDescription()
         for i in range(self.variables_dim):
             self.add_variable(bounds=self.variables_bounds_[i], initial_guess=self.variables_initial_guess[i],
-                              name=variables_names[i], hints=self.variables_hints[i])
+                              hints=self.variables_hints[i])
         # Add objectives
-        objectives_names = self.ot_problem.getObjective().getOutputDescription()
         for i in range(self.objectives_dim):
-            self.add_objective(name=objectives_names[i], hints=self.objectives_hints[i])
-        # The names of constraints may not be unique as they refferes to different objects
+            self.add_objective(hints=self.objectives_hints[i])
         # Add equality constraints g(x) = 0
         if self.ot_equality is not None:
             for i in range(self.equality_dim):
@@ -86,7 +103,7 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
         # Enable specified gradients
         if self.ot_objectives_gradient is not None:
             self.enable_objectives_gradient()
-        if self.ot_equality_gradient is not None and self.ot_inequality_gradient is not None:
+        if self.ot_equality_gradient is not None or self.ot_inequality_gradient is not None:
             self.enable_constraints_gradient()
 
     def evaluate(self, queryx, querymask):
@@ -146,11 +163,9 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
                 values = self.__calc_gradient_partially(function=self.ot_inequality_gradient, x=x, mask=submask)
                 # Assign inequality constraints gradient
                 constraints_gradient[self.equality_gradient_dim:] = values
-
             # p7core.gtopt doesn't support maximization problem
             if not self.ot_problem.isMinimization():
-                objectives = [-1*i if i else None for i in objectives]
-
+                objectives = [-1 * value if value is not None else value for value in objectives]
             functions_batch.append(objectives + constraints + objectives_gradient + constraints_gradient)
             output_mask = mask
             output_masks_batch.append(output_mask)
@@ -163,6 +178,7 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
     def __get_variables_bounds(self):
         # Prepares the openturns bounds for p7core solver
         variables_bounds = []
+        # True if bounds and problem dimension are equal
         if self.ot_problem.hasBounds():
             # openturns.Interval object
             ot_bounds = self.ot_problem.getBounds()

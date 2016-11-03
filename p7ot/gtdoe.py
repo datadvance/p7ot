@@ -22,7 +22,7 @@ from da.p7core import gtdoe
 from .blackbox import _Blackbox
 
 
-# Used to keep DoE settings in appropriate way (in terms of p7core.gtdoe)
+# Used to keep DoE settings in appropriate way (for of p7core.gtdoe generator)
 class _DoeSettings(object):
 
     # {variable_name: option_name} dictionary
@@ -96,27 +96,22 @@ class _DoeSettings(object):
 
 class _P7Experiment(ot.ExperimentImplementation):
     """
-    Base class for da.p7core.gtdoe techniques
+    Base class for da.p7core.gtdoe techniques.
 
     Parameters
     ----------
-    bounds: tuple(list[float], list[float])
-        Design space bounds (lower, upper).
+    bounds: :class:`~openturns.Interval`
+        Bounds.
     count: int, long
-        The number of points to generate
-    technique: "RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq", "FullFactorial", "FractionalFactorial", "LHS", "OLHS",
-               "OptimalDesign", "OrthogonalArray", "ParametricStudy", "BoxBehnken", "Adaptive" or "Auto"
-        The generation algorithm to use (Default: "Auto").
+        The number of points to generate.
     """
-
-    def __init__(self, bounds, count, technique=None):
+    def __init__(self, bounds, count):
         self.__generator = gtdoe.Generator()
         self.__p7_result = None
         # preparing the parameters of p7core.gtdoe generate method
         self._settings = _DoeSettings()
         self.setBounds(bounds)
         self.setCount(count)
-        self.setTechnique(technique)
         super(_P7Experiment, self).__init__()
 
     def generate(self):
@@ -130,7 +125,7 @@ class _P7Experiment(ot.ExperimentImplementation):
         """
         # use converted bounds for generate method
         self.__p7_result = self.__generator.generate(**self._settings.get())
-        return ot.typ.NumericalSample(self.__p7_result.points)
+        return ot.NumericalSample(self.__p7_result.points)
 
     def getClassName(self):
         """
@@ -145,24 +140,26 @@ class _P7Experiment(ot.ExperimentImplementation):
 
     def getBounds(self):
         """
-        Get design space bounds
+        Get design space bounds.
 
         Returns
         -------
-        bounds : tuple(list[float], list[float])
-            Design space bounds (lower, upper)
+        bounds: :class:`~openturns.Interval`
+            Bounds.
         """
         return self.__bounds
 
     def setBounds(self, bounds):
         """
-        Set design space bounds
+        Set design space bounds.
 
         Parameters
         -------
-        bounds : tuple(list[float], list[float])
-            Design space bounds (lower, upper)
+        bounds: :class:`~openturns.Interval`
+            Bounds.
         """
+        if not isinstance(bounds, ot.Interval):
+            raise TypeError("Wrong 'bounds' type %s! Required: %s" % (type(bounds).__name__, ot.Interval))
         self.__bounds = bounds
         # Convert bounds for p7 generator
         p7_bounds = self.__convert_bounds(bounds)
@@ -175,8 +172,7 @@ class _P7Experiment(ot.ExperimentImplementation):
         Returns
         -------
         count: int, long
-            The number of points to generate (not for the blackbox-based
-            adaptive DoE; use budget).
+            The number of points to generate.
         """
         return self._settings.get('count')
 
@@ -189,31 +185,11 @@ class _P7Experiment(ot.ExperimentImplementation):
         count: int, long
             The number of points to generate.
         """
+        if not isinstance(count, (int, long)):
+            raise TypeError("Wrong 'count' type %s! Required: int or long" % (type(count).__name__))
+        if count <= 0:
+            raise ValueError("Argument 'count' must be > 0")
         self._settings.set('count', count)
-
-    def getTechnique(self):
-        """
-        Get the generation algorithm name.
-
-        Returns
-        -------
-        technique: "RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq", "FullFactorial", "FractionalFactorial", "LHS",
-                   "OLHS", "OptimalDesign", "OrthogonalArray", "ParametricStudy", "BoxBehnken", "Adaptive" or "Auto"
-            The generation algorithm to use (Default: "Auto").
-        """
-        return self._settings.get('technique')
-
-    def setTechnique(self, technique):
-        """
-        Set the generation algorithm.
-
-        Parameters
-        ----------
-        technique: "RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq", "FullFactorial", "FractionalFactorial", "LHS",
-                   "OLHS", "OptimalDesign", "OrthogonalArray", "ParametricStudy", "BoxBehnken", "Adaptive" or "Auto"
-            The generation algorithm to use (Default: "Auto").
-        """
-        self._settings.set('technique', technique)
 
     def setLogger(self, logger):
         """
@@ -238,27 +214,9 @@ class _P7Experiment(ot.ExperimentImplementation):
         """
         self.__generator.set_watcher(watcher)
 
-    def getP7Result(self):
-        """
-        Accessor to p7core DoE result.
-
-        Returns
-        -------
-        p7result : :class:`~da.p7core.gtdoe.Result`
-            Result object.
-        """
-        return self.__p7_result
-
-    def __convert_bounds(self, bounds):
-        # Convert bounds from ot.Interval to (lowerBounds, upperBounds)
-        return (list(bounds.getLowerBound()), list(bounds.getUpperBound()))
-
-
-# Base class for DoE common options
-class _Batch(_P7Experiment):
     def getDeterministic(self):
         """
-        Get the value of Deterministic DoE setting
+        Get the value of Deterministic DoE setting.
 
         Returns
         -------
@@ -269,7 +227,7 @@ class _Batch(_P7Experiment):
 
     def setDeterministic(self, deterministic):
         """
-        Set the value of Deterministic DoE setting
+        Set the value of Deterministic DoE setting.
 
         Parameters
         ----------
@@ -359,17 +317,32 @@ class _Batch(_P7Experiment):
         """
         self._settings.set('maxParallel', maxParallel)
 
+    def getP7Result(self):
+        """
+        Accessor to p7core DoE result.
 
-class Sequence(_Batch):
+        Returns
+        -------
+        p7result : :class:`~da.p7core.gtdoe.Result`
+            Result object.
+        """
+        return self.__p7_result
+
+    def __convert_bounds(self, bounds):
+        # Convert bounds from ot.Interval to (lowerBounds, upperBounds)
+        return (list(bounds.getLowerBound()), list(bounds.getUpperBound()))
+
+
+class Sequence(_P7Experiment):
     """
     Sequential design of experiments.
 
     Parameters
     ----------
-    bounds: tuple(list[float], list[float])
-        Design space bounds (lower, upper).
+    bounds: :class:`~openturns.Interval`
+        Bounds.
     count: int, long
-        The number of points to generate
+        The number of points to generate.
     deterministic: boolean
         Require generation to be reproducible (Default: False).
     seed: integer in range [1, 2^31 - 1]
@@ -389,20 +362,14 @@ class Sequence(_Batch):
     skip: integer in range [0,65535]
         The number of elements to skip at the beginning of sequence (Default: 0).
     technique: "RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq"
-        The generation algorithm to use (Default: "RandomSeq").
+        The generation algorithm to use (Default: "SobolSeq").
     """
     def __init__(self, bounds, count,
                  deterministic=None, seed=None,
                  logLevel=None, maxParallel=None,
                  leap=None, skip=None, technique=None):
-
-        self.__techniques = ["RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq"]
-        self.__default_technique = "SobolSeq"
-        if technique in self.__techniques:
-            self.__technique = technique
-        else:
-            self.__technique = self.__default_technique
-        super(Sequence, self).__init__(bounds=bounds, count=count, technique=self.__technique)
+        super(Sequence, self).__init__(bounds=bounds, count=count)
+        self.setTechnique(technique)
         self._settings.set_all(deterministic=deterministic, seed=seed,
                                logLevel=logLevel, maxParallel=maxParallel,
                                leap=leap, skip=skip)
@@ -460,9 +427,9 @@ class Sequence(_Batch):
         Returns
         -------
         technique: "RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq"
-            The generation algorithm to use (Default: "RandomSeq").
+            The generation algorithm to use (Default: "SobolSeq").
         """
-        return self.__technique
+        return self._settings.get('technique')
 
     def setTechnique(self, technique):
         """
@@ -471,26 +438,29 @@ class Sequence(_Batch):
         Parameters
         ----------
         technique: "RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq"
-            The generation algorithm to use (Default: "RandomSeq").
+            The generation algorithm to use (Default: "SobolSeq").
         """
-        if technique in self.__techniques:
-            self.__technique = technique
+        if technique is None:
+            self._settings.set('technique', "SobolSeq")
         else:
-            self.__technique = self.__default_technique
-        self._settings.set('technique', self.__technique)
+            if not isinstance(technique, str):
+                raise TypeError("Wrong 'technique' type %s! Required: str" % (type(technique).__name__))
+            if technique not in ["RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq"]:
+                raise ValueError("Unknown 'technique' value '%s'." % (technique) +
+                                 " Expected values are: 'RandomSeq', 'HaltonSeq', 'SobolSeq', 'FaureSeq'")
+            self._settings.set('technique', technique)
 
 
-class LHS(_Batch):
+class LHS(_P7Experiment):
     """
     Latin Hypercube Sampling (LHS) design of experiments.
 
     Parameters
     ----------
-    bounds: tuple(list[float], list[float])
-        Design space bounds (lower, upper).
+    bounds: :class:`~openturns.Interval`
+        Bounds.
     count: int, long
-        The number of points to generate (not for the blackbox-based
-        adaptive DoE; use budget).
+        The number of points to generate.
     deterministic: boolean
         Require generation to be reproducible (Default: False).
     seed: integer in range [1, 2^31 - 1]
@@ -506,7 +476,7 @@ class LHS(_Batch):
         Default setting (0) uses the value given by the OMP_NUM_THREADS environment variable,
         which by default is equal to the number of virtual processors, including hyperthreading CPUs.
     useOptimized: boolean
-        Use Optimized Latin Hypercube Sampling (Defalut: False)
+        Use Optimized Latin Hypercube Sampling (Defalut: False).
     iterations: integer in range [2,65535]
         Maximum number of optimization iterations in OLHS generation (Default: 300).
     """
@@ -514,15 +484,12 @@ class LHS(_Batch):
                  deterministic=None, seed=None,
                  logLevel=None, maxParallel=None,
                  useOptimized=False, iterations=None):
+        super(LHS, self).__init__(bounds=bounds, count=count)
         self.__use_optimized = useOptimized
-        if useOptimized:
-            technique = "OLHS"
-        else:
-            technique = "LHS"
-        super(LHS, self).__init__(bounds=bounds, count=count, technique=technique)
+        technique = "OLHS" if useOptimized else "LHS"
         self._settings.set_all(deterministic=deterministic, seed=seed,
                                logLevel=logLevel, maxParallel=maxParallel,
-                               iterations=iterations)
+                               iterations=iterations, technique=technique)
 
     def enableOptimized(self):
         """Enable Optimized Latin Hypercube Sampling."""
@@ -569,7 +536,7 @@ class LHS(_Batch):
         self._settings.set('iterations', iterations)
 
 
-class Adaptive(_Batch):
+class Adaptive(_P7Experiment):
     """
     Adaptive Blackbox-Based design of experiments.
 
@@ -577,16 +544,10 @@ class Adaptive(_Batch):
     ----------
     blackbox: :class:`~openturns.NumericalMathFunction`
         Adaptive DoE blackbox.
-    bounds: tuple(list[float], list[float])
-        Design space bounds (lower, upper).
-    budget: int, long
-        Blackbox budget
-    init_x: (array-like, 1D or 2D)
-        Optional initial sample for the adaptive DoE, input part
-        (values of variables).
-    init_y: (array-like, 1D or 2D)
-        Optional initial sample for the adaptive DoE, response part
-        (function values).
+    bounds: :class:`~openturns.Interval`
+        Bounds.
+    count: int, long
+        The number of points to generate.
     deterministic: boolean
         Require generation to be reproducible (Default: False).
     seed: integer in range [1, 2^31 - 1]
@@ -604,26 +565,24 @@ class Adaptive(_Batch):
     initialDoeTechnique: "RandomSeq", "FaureSeq", "HaltonSeq", "SobolSeq", "BoxBehnken", "FullFactorial",
                          "LHS", "OLHS", "OptimalDesign", or "ParametricStudy"
         DoE technique used to generate an initial sample in the adaptive mode (Default: "LHS").
-    useGradient: boolean
-        Enable or disable using analytical gradients (Default: False).
+    init_x: (array-like, 1D or 2D)
+        Optional initial sample for the adaptive DoE, input part (values of variables).
+    init_y: (array-like, 1D or 2D)
+        Optional initial sample for the adaptive DoE, response part (function values).
     """
-    def __init__(self, blackbox, bounds, budget, init_x=None, init_y=None,
+    def __init__(self, blackbox, bounds, count,
                  deterministic=None, seed=None,
                  logLevel=None, maxParallel=None,
-                 initialDoeTechnique=None, useGradient=False):
-        super(Adaptive, self).__init__(bounds=bounds, count=None, technique=None)
-        self.__use_gradient = useGradient
-        self.__blackbox = blackbox
-        p7_blackbox = _Blackbox(blackbox, self._settings.get('bounds'), useGradient)
-        self._settings.set_all(blackbox=p7_blackbox, budget=budget,
-                               init_x=init_x, init_y=init_y,
-                               deterministic=deterministic, seed=seed,
+                 init_x=None, init_y=None, initialDoeTechnique=None):
+        super(Adaptive, self).__init__(bounds=bounds, count=count)
+        self.setBlackbox(blackbox)
+        self._settings.set_all(deterministic=deterministic, seed=seed,
                                logLevel=logLevel, maxParallel=maxParallel,
-                               initialDoeTechnique=initialDoeTechnique)
+                               init_x=init_x, init_y=init_y, initialDoeTechnique=initialDoeTechnique)
 
     def getBlackbox(self):
         """
-        Get adaptive DoE blackbox
+        Get adaptive DoE blackbox.
 
         Returns
         -------
@@ -634,39 +593,53 @@ class Adaptive(_Batch):
 
     def setBlackbox(self, blackbox):
         """
-        Set adaptive DoE blackbox
+        Set adaptive DoE blackbox.
 
         Parameters
         -------
         blackbox: :class:`~openturns.NumericalMathFunction`
             adaptive DoE blackbox, optional.
         """
+        if not isinstance(blackbox, ot.NumericalMathFunction):
+            raise TypeError("Wrong 'blackbox' type %s! Required: %s" %
+                            (type(blackbox).__name__, ot.NumericalMathFunction))
+        # Must be checked to prepare blackbox without fails (p7core gtdoe will do the same thing later).
+        bounds_dimension = self._P7Experiment__bounds.getDimension()
+        blackbox_dimension = blackbox.getInputDimension()
+        if bounds_dimension != blackbox_dimension:
+            raise ValueError("Inconsistent blackbox and bounds dimension")
         # Convert blackbox for p7 generator
-        p7_blackbox = _Blackbox(blackbox, self._settings.get('bounds'), self.__use_gradient)
+        p7_blackbox = _Blackbox(blackbox, self._settings.get('bounds'))
         self._settings.set('blackbox', p7_blackbox)
         self.__blackbox = blackbox
 
-    def getBudget(self):
+    def getCount(self):
         """
-        Get blackbox budget
+        Get the number of points to generate.
 
         Returns
         -------
-        budget: int, long
-            blackbox budget.
+        count: int, long
+            The number of points to generate.
         """
+        # count is not for the blackbox-based adaptive DoE, use budget
         return self._settings.get('budget')
 
-    def setBudget(srlf, budget):
+    def setCount(self, count):
         """
-        Set blackbox budget
+        Set the number of points to generate.
 
         Parameters
-        -------
-        budget: int, long
-            blackbox budget
+        ----------
+        count: int, long
+            The number of points to generate.
         """
-        self._settings.set('budget', budget)
+        if not isinstance(count, (int, long)):
+            raise TypeError("Wrong 'count' type %s! Required: int or long" % (type(count).__name__))
+        if count <= 0:
+            raise ValueError("Argument 'count' must be > 0")
+        # count is not for the blackbox-based adaptive DoE, use budget
+        self._settings.set('budget', count)
 
     def getInitX(self):
         """
@@ -675,8 +648,7 @@ class Adaptive(_Batch):
         Returns
         -------
         init_x: (array-like, 1D or 2D)
-            optional initial sample for the adaptive DoE, input part
-            (values of variables).
+            optional initial sample for the adaptive DoE, input part (values of variables).
         """
         return self._settings.get('init_x')
 
@@ -687,8 +659,7 @@ class Adaptive(_Batch):
         Parameters
         ----------
         init_x: (array-like, 1D or 2D)
-            optional initial sample for the adaptive DoE, input part
-            (values of variables).
+            optional initial sample for the adaptive DoE, input part (values of variables).
         """
         self._settings.set('init_x', init_x)
 
@@ -739,23 +710,3 @@ class Adaptive(_Batch):
             DoE technique used to generate an initial sample in the adaptive mode (Default: "LHS").
         """
         self._settings.set('initialDoeTechnique', initialDoeTechnique)
-
-    def enableGradient(self):
-        """Enable using analytical gradients."""
-        self.__use_gradient = True
-
-    def disableGradient(self):
-        """Disable using analytical gradients."""
-        self.__use_gradient = False
-
-    def isGradientEnabled(self):
-        """
-        Test whether the gradients are enabled or not.
-
-        Returns
-        -------
-        useGradient : bool
-            Flag telling whether the analytical gradients are enabled.
-            It is disabled by default.
-        """
-        return self.__use_gradient

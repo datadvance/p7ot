@@ -1,4 +1,4 @@
-The python package p7ot for pSeven Core integration in OpenTURNS
+The Python package p7ot for pSeven Core integration in OpenTURNS
 ===========================================================
 
 The purpose of this package is to make [pSeven Core](https://www.datadvance.net/product/pseven-core/)

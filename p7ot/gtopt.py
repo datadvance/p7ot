@@ -20,19 +20,21 @@
 import openturns as ot
 from da.p7core import gtopt
 from .problem import _ProblemGeneric
+import numpy as np
 
 
 class GTOpt(ot.OptimizationSolverImplementation):
     """
-    Generic Tool for Optimization (GTOpt) module from pSeven Core
+    Generic Tool for Optimization (GTOpt) module from pSeven Core.
 
     Available constructors:
-        GTOpt(*problem, options=None, input_hints=None, objective_hints=None, equality_hints=None,
-               inequality_hints=None, sample_x=None, sample_f=None, sample_c=None*)
+        GTOpt(*problem, options=None,
+               input_hints=None, objective_hints=None, equality_hints=None, inequality_hints=None,
+               sample_x=None, sample_f=None, sample_c=None*)
 
     Parameters
     ----------
-    problem : :class:`~openturns.OptimizationProblem
+    problem : :class:`~openturns.OptimizationProblem`
         Optimization problem.
     options : dictionary
         Solver options.
@@ -55,6 +57,9 @@ class GTOpt(ot.OptimizationSolverImplementation):
                  input_hints=None, objective_hints=None, equality_hints=None, inequality_hints=None,
                  sample_x=None, sample_f=None, sample_c=None):
         super(GTOpt, self).__init__(problem)
+        self.__p7_result = None
+        self.__p7_history = None
+        self.__ot_result = None
         self.__options = gtopt.Solver().options
         if options:
             self.__options.set(options)
@@ -74,17 +79,6 @@ class GTOpt(ot.OptimizationSolverImplementation):
         self.__equality_hints = self.__add_hints(dimension=self.__equality_dim, hints_list=equality_hints)
         self.__inequality_hints = self.__add_hints(dimension=self.__inequality_dim, hints_list=inequality_hints)
 
-    def getP7Result(self):
-        """
-        Accessor to p7core optimization result.
-
-        Returns
-        -------
-        p7result : :class:`~da.p7core.gtopt.Result`
-            Result object.
-        """
-        return self.__p7_result
-
     def getClassName(self):
         """
         Accessor to the object's name.
@@ -96,6 +90,53 @@ class GTOpt(ot.OptimizationSolverImplementation):
         """
         return self.__class__.__name__
 
+    def getP7Result(self):
+        """
+        Accessor to p7core optimization result.
+
+        Returns
+        -------
+        p7result : :class:`~da.p7core.gtopt.Result`
+            Result object.
+        """
+        return self.__p7_result
+
+    def getP7History(self):
+        """
+        Accessor to the history of problem evaluations.
+
+        Returns
+        -------
+        p7result : :class:`~openturns.NumericalSample`
+            Returns values of variables and evaluation results.
+            Each element of the top-level list is one evaluated point.
+            Nested list structure is [variables, objectives, constraints, objective gradients, constraint gradients].
+            Gradients are added only if analytical gradients are enabled.
+        """
+        return ot.NumericalSample(self.__p7_history)
+
+    def getResult(self):
+        """
+        Accessor to optimization result.
+
+        Returns
+        -------
+        result : :class:`~openturns.OptimizationResult`
+            Result class.
+        """
+        return self.__ot_result
+
+    def setResult(self, result):
+        """
+        Accessor to optimization result.
+
+        Parameters
+        ----------
+        result : :class:`~openturns.OptimizationResult`
+            Result class.
+        """
+        self.__ot_result = result
+
     def run(self):
         """Launch the optimization."""
         p7_problem = _ProblemGeneric(problem=self.getProblem(), starting_point=self.getStartingPoint(),
@@ -104,14 +145,16 @@ class GTOpt(ot.OptimizationSolverImplementation):
                                      input_hints=self.__input_hints, objective_hints=self.__objective_hints,
                                      equality_hints=self.__equality_hints, inequality_hints=self.__inequality_hints)
         p7_problem.set_history(memory=True)
-        p7_result = gtopt.Solver().solve(p7_problem, options=self.__options.get(),
-                                         sample_x=self.__sample_x, sample_f=self.__sample_f, sample_c=self.__sample_c)
-        # p7core.gtopt doesn't support maximization problem
+        self.__p7_result = gtopt.Solver().solve(problem=p7_problem, options=self.__options.get(),
+                                                sample_x=self.__sample_x, sample_f=self.__sample_f,
+                                                sample_c=self.__sample_c)
+        # Convert None values to nan in history
+        history = np.array(p7_problem.designs, dtype=np.float)
         if not self.getProblem().isMinimization():
-            p7_result.optimal.f[0] = [-1 * i if i else None for i in p7_result.optimal.f[0]]
+                history[:, self.__input_dim: self.__input_dim + self.__objectives_dim] *= -1
+        self.__p7_history = history
         # Convert p7 result object to openturns result
-        ot_result = self.__get_ot_result(p7_result, p7_problem)
-        self.setResult(ot_result)
+        self.__ot_result = self.__get_ot_result(len(self.__p7_history))
 
     def getMaximumIterationNumber(self):
         """
@@ -265,19 +308,19 @@ class GTOpt(ot.OptimizationSolverImplementation):
             hints_list = [{}] * dimension
         else:
             # hints_list should be a list
-            if type(hints_list) is not list:
+            if not isinstance(hints_list, list):
                 raise TypeError("Wrong type of hints list. Expected: list of dictionaries, got: %s" % type(hints_list))
             # Check the length of the hints_list
             if len(hints_list) != dimension:
                 raise ValueError("Wrong length of hints list, Expected: %s, got: %s" % (dimension, len(hints_list)))
             # Elements of the hints_list should be a dictionary
-            invalid_hints = [type(item) for item in hints_list if type(item) is not dict]
+            invalid_hints = [type(item) for item in hints_list if not isinstance(item, dict)]
             if invalid_hints:
                 raise TypeError("Wrong type of hints. Expected: dictionary, got: %s" % invalid_hints)
         # Check hints if specified, otherwise return hints_list without modifying
         if hints is None and indices is None:
             return hints_list
-        elif type(hints) is not dict:
+        elif not isinstance(item, dict):
             # hints should be a dictionary
             raise TypeError("Wrong type of hints. Expected: dictionary, got: %s" % type(hints))
         # Check indicies if specified
@@ -286,10 +329,10 @@ class GTOpt(ot.OptimizationSolverImplementation):
             indices = range(dimension)
         else:
             # indices should be a list of integers or a single integer
-            if type(indices) is int:
+            if isinstance(indices, int):
                 # In case of getting a single index instead of an indices list
                 indices = [indices]
-            elif type(indices) is list:
+            elif isinstance(indices, list):
                 # Remove dublicates from the indicies list
                 indices = list(set(indices))
                 # Indices should be in valid range [0, dimension-1]
@@ -303,16 +346,24 @@ class GTOpt(ot.OptimizationSolverImplementation):
             hints_list[i] = hints
         return hints_list
 
-    def __get_ot_result(self, p7_result, p7_problem):
-        iteration_number = len(p7_problem.history)
-        optimal_point = ot.NumericalPoint(p7_result.optimal.x[0])
+    def __get_ot_result(self, iteration_number):
+        optimal_x = self.__p7_result.optimal.x
+        optimal_f = self.__p7_result.optimal.f
+        optimal_c = self.__p7_result.optimal.c
+        # Convert values in case of maximization problem (p7core.gtopt doesn't support it)
+        if not self.getProblem().isMinimization():
+            optimal_f *= -1
         # In case of optimization problem with level function g(x)=v:
         # 1. level function g(x)=v acts as equality constraint, min||x|| - as objective function
         # 2. the value of level function should be set as optimal
+        optimal_outputs = None
         if self.getProblem().hasLevelFunction():
-            optimal_value = self.getProblem().getLevelFunction()(optimal_point)
+            level_value = self.getProblem().getLevelValue()
+            optimal_outputs = [optimal_c[0] + level_value]
         else:
-            optimal_value = ot.NumericalPoint(p7_result.optimal.f[0])
-        # Absolute, constraint, residual and relative errors cal p7 builder
-        # for any available information about the solving process see getP7Result() and da.p7core.gtopt.Result API
-        return ot.OptimizationResult(optimal_point, optimal_value, iteration_number, -1, -1, -1, -1)
+            optimal_outputs = np.concatenate((optimal_f, optimal_c), axis=1)
+        # Create optimization result object
+        # Absolute, constraint, residual and relative errors are not supported by p7 builder.
+        # For additional information about the solving process see getP7Result() and getP7History()
+        ot_result = ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1)
+        return ot_result
