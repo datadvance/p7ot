@@ -22,6 +22,7 @@ import numpy as np
 
 
 class _ProblemGeneric(gtopt.ProblemGeneric):
+
     def __init__(self, problem, starting_point, use_objectives_gradient, use_constraints_gradient,
                  input_hints, objective_hints, equality_hints, inequality_hints):
         super(_ProblemGeneric, self).__init__()
@@ -87,7 +88,8 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
     def prepare_problem(self):
         # Add variables
         for i in range(self.variables_dim):
-            self.add_variable(bounds=self.variables_bounds_[i], initial_guess=self.variables_initial_guess[i],
+            self.add_variable(bounds=self.variables_bounds_[i],
+                              initial_guess=self.variables_initial_guess[i],
                               hints=self.variables_hints[i])
         # Add objectives
         for i in range(self.objectives_dim):

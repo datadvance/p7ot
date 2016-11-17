@@ -32,7 +32,19 @@ Using
 """
 
 
-from .gtdoe import Sequence, LHS, Adaptive
+from .gtdoe import (
+    Sequence,
+    LHS,
+    BoxBehnken,
+    FullFactorial,
+    FractionalFactorial,
+    OptimalDesign,
+    OrthogonalArray,
+    ParametricStudy,
+    AdaptiveBlackbox,
+    AdaptiveSample,
+    AdaptiveLHS
+)
 from .gtopt import GTOpt
 from .gtapprox import ModelFunction
 

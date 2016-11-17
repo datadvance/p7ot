@@ -17,11 +17,11 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from da.p7core import blackbox as p7blackbox
-import numpy as np
+from da.p7core import blackbox
 
 
-class _Blackbox(p7blackbox.Blackbox):
+class _Blackbox(blackbox.Blackbox):
+
     def __init__(self, blackbox, bounds):
         super(_Blackbox, self).__init__()
         self.__blackbox = blackbox

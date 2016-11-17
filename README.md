@@ -17,7 +17,7 @@ REQUIREMENTS
 ------------
 
 *   pSeven Core 6.9
-*   OpenTURNS 1.7
+*   OpenTURNS 1.7 (OpenTURNS 1.8rc2 for ExperimentImplementaion exchange)
 *   numpy 1.6.1
 
 p7ot has been tested with OpenTURNS 1.7 on Linux operating systems.      
@@ -67,7 +67,7 @@ Latin Hypercube Sampling (LHS) design of experiment:
 Adaptive Blackbox-Based design of experiment:
 ```python
 >>> blackbox = ot.NumericalMathFunction(['x1', 'x2', 'x3'], ['x1^2 + x2^2 + x3^2'])
->>> experiment = p7ot.Adaptive(blackbox=blackbox, bounds=ot.Interval([0]*3, [10]*3), budget=10, useGradient=True)
+>>> experiment = p7ot.AdaptiveBlackbox(blackbox=blackbox, bounds=ot.Interval([0]*3, [10]*3), count=10)
 >>> print experiment.generate()
 0 : [ 8.33333   5         0.555556  ]
 1 : [ 0.555556  7.22222   1.66667   ]
@@ -90,7 +90,7 @@ Adaptive Blackbox-Based design of experiment:
 >>> p7_model = gtapprox.Builder().build(x,y)  # p7core model
 >>> print p7_model.calc([0.2, 0.3])
 [ 0.06139608]
->>> p7ot_function = p7ot.ModelFunction(2, 1, p7_model)  # p7ot function
+>>> p7ot_function = p7ot.ModelFunction(p7_model)  # p7ot function
 >>> print p7ot_function([0.2, 0.3])
 [0.0613961]
 >>> ot_function = ot.NumericalMathFunction(p7ot_function)  # OpenTURNS function
@@ -101,8 +101,8 @@ Adaptive Blackbox-Based design of experiment:
 #### Optimization
 ```python
 >>> rosenbrock_function = ot.NumericalMathFunction(['x1', 'x2', 'x3', 'x4'], ['100*(x4-x3^2)^2+(x3-1)^2+' +
-...                                                                          '100*(x3-x2^2)^2+(x2-1)^2+' +
-...                                                                          '100*(x2-x1^2)^2+(x1-1)^2'])
+...                                                                           '100*(x3-x2^2)^2+(x2-1)^2+' +
+...                                                                           '100*(x2-x1^2)^2+(x1-1)^2'])
 >>> bounds = ot.Interval([-500]*4, [500]*4)
 >>> problem = ot.OptimizationProblem()
 >>> problem.setObjective(rosenbrock_function)

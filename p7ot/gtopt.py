@@ -23,6 +23,60 @@ from .problem import _ProblemGeneric
 import numpy as np
 
 
+class _HintsList(object):
+    def __init__(self, hints_list, dimension):
+        # Check arguments and create valid list of hints that are to be used to prepare p7 problem.
+        if hints_list is None:
+            hints_list = [{}] * dimension
+        else:
+            # hints_list should be a list
+            if not isinstance(hints_list, list):
+                raise TypeError("Wrong type of hints list. Expected: list of dictionaries, got: %s" % type(hints_list))
+            # Check the length of the hints_list
+            if len(hints_list) != dimension:
+                raise ValueError("Wrong length of hints list. Expected: %s, got: %s" % (dimension, len(hints_list)))
+            # Elements of the hints_list should be a dictionary
+            invalid_hints = [type(item) for item in hints_list if not isinstance(item, dict)]
+            if invalid_hints:
+                raise TypeError("Wrong type of hints. Expected: dictionary, got: %s" % invalid_hints)
+        self.__hints_list = hints_list
+        self.__dimension = dimension
+
+    def apply(self, hints, indices=None):
+        # hints should be a dictionary
+        if not isinstance(hints, dict):
+            raise TypeError("Wrong type of hints. Expected: dictionary, got: %s" % type(hints))
+        # Check indices
+        indices = self.__validate_indices(indices)
+        # Modify the list of hints
+        for i in indices:
+            self.__hints_list[i] = hints
+
+    def get_list(self):
+        return self.__hints_list
+
+    def __validate_indices(self, indices=None):
+        # Check indicies if specified (should be a list of integers or a single integer)
+        if indices is None:
+            # hints will be set to each element of the hints list
+            indices = range(self.__dimension)
+        elif isinstance(indices, int):
+            # In case of getting a single index
+            if indices not in range(self.__dimension):
+                raise ValueError("The index must be in range 0...%s, got %s" % (self.__dimension-1, indices))
+            indices = [indices]
+        elif isinstance(indices, list):
+            # Remove dublicates from the indicies list
+            indices = list(set(indices))
+            # Indices should be in valid range [0, dimension-1]
+            invalid_indices = [item for item in indices if item not in range(self.__dimension)]
+            if invalid_indices:
+                raise ValueError("The indices must be in range 0...%s, got %s" % (self.__dimension-1, invalid_indices))
+        else:
+            raise TypeError("Wrong type of indices. Expected: list or integer, got: %s" % (type(indices)))
+        return indices
+
+
 class GTOpt(ot.OptimizationSolverImplementation):
     """
     Generic Tool for Optimization (GTOpt) module from pSeven Core.
@@ -34,31 +88,32 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
     Parameters
     ----------
-    problem : :class:`~openturns.OptimizationProblem`
+    problem: :class:`~openturns.OptimizationProblem`
         Optimization problem.
-    options : dictionary
+    options: dictionary
         Solver options.
-    input_hints : list of dictionaries or None
+    input_hints: list of dictionaries
         Additional properties of defined design variables.
-    objective_hints : list of dictionaries or None
+    objective_hints: list of dictionaries
         Additional properties of defined objective functions.
-    equality_hints : list of dictionaries or None
+    equality_hints: list of dictionaries
         Additional properties of defined equality constraints.
-    inequality_hints : list of dictionaries or None
+    inequality_hints: list of dictionaries
         Additional properties of defined inequality constraints.
-    sample_x : array-like, 1D or 2D
+    sample_x: array-like, 1D or 2D
         Optional initial sample containing values of variables.
-    sample_f : array-like, 1D or 2D
+    sample_f: array-like, 1D or 2D
         Optional initial sample of objective function values, requires sample_x.
-    sample_c : array-like, 1D or 2D
+    sample_c: array-like, 1D or 2D
         Optional initial sample of constraint function values, requires sample_x.
     """
     def __init__(self, problem, options=None,
                  input_hints=None, objective_hints=None, equality_hints=None, inequality_hints=None,
                  sample_x=None, sample_f=None, sample_c=None):
         super(GTOpt, self).__init__(problem)
-        self.__p7_result = None
         self.__p7_history = None
+        self.__p7_problem = None
+        self.__p7_result = None
         self.__ot_result = None
         self.__options = gtopt.Solver().options
         if options:
@@ -74,10 +129,10 @@ class GTOpt(ot.OptimizationSolverImplementation):
         self.__equality_dim = problem.getEqualityConstraint().getOutputDimension()
         self.__inequality_dim = problem.getInequalityConstraint().getOutputDimension()
         # GTOpt hints
-        self.__input_hints = self.__add_hints(dimension=self.__input_dim, hints_list=input_hints)
-        self.__objective_hints = self.__add_hints(dimension=self.__objectives_dim, hints_list=objective_hints)
-        self.__equality_hints = self.__add_hints(dimension=self.__equality_dim, hints_list=equality_hints)
-        self.__inequality_hints = self.__add_hints(dimension=self.__inequality_dim, hints_list=inequality_hints)
+        self.__input_hints = _HintsList(input_hints, self.__input_dim)
+        self.__objective_hints = _HintsList(objective_hints, self.__objectives_dim)
+        self.__equality_hints = _HintsList(equality_hints, self.__equality_dim)
+        self.__inequality_hints = _HintsList(inequality_hints, self.__inequality_dim)
 
     def getClassName(self):
         """
@@ -85,10 +140,21 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
         Returns
         -------
-        class_name : str
+        class_name: str
             The object class name (`object.__class__.__name__`).
         """
         return self.__class__.__name__
+
+    def getP7Problem(self):
+        """
+        Accessor to p7core optimization problem.
+
+        Returns
+        -------
+        p7_problem: :class:`~da.p7core.gtopt.ProblemGeneric`
+            Problem object.
+        """
+        return self.__p7_problem
 
     def getP7Result(self):
         """
@@ -96,7 +162,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
         Returns
         -------
-        p7result : :class:`~da.p7core.gtopt.Result`
+        p7result: :class:`~da.p7core.gtopt.Result`
             Result object.
         """
         return self.__p7_result
@@ -107,7 +173,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
         Returns
         -------
-        p7result : :class:`~openturns.NumericalSample`
+        p7result: :class:`~openturns.NumericalSample`
             Returns values of variables and evaluation results.
             Each element of the top-level list is one evaluated point.
             Nested list structure is [variables, objectives, constraints, objective gradients, constraint gradients].
@@ -121,7 +187,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
         Returns
         -------
-        result : :class:`~openturns.OptimizationResult`
+        result: :class:`~openturns.OptimizationResult`
             Result class.
         """
         return self.__ot_result
@@ -132,37 +198,40 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
         Parameters
         ----------
-        result : :class:`~openturns.OptimizationResult`
+        result: :class:`~openturns.OptimizationResult`
             Result class.
         """
         self.__ot_result = result
 
     def run(self):
         """Launch the optimization."""
-        p7_problem = _ProblemGeneric(problem=self.getProblem(), starting_point=self.getStartingPoint(),
-                                     use_objectives_gradient=self.__use_objectives_gradient,
-                                     use_constraints_gradient=self.__use_constraints_gradient,
-                                     input_hints=self.__input_hints, objective_hints=self.__objective_hints,
-                                     equality_hints=self.__equality_hints, inequality_hints=self.__inequality_hints)
-        p7_problem.set_history(memory=True)
-        self.__p7_result = gtopt.Solver().solve(problem=p7_problem, options=self.__options.get(),
+        self.__p7_problem = _ProblemGeneric(problem=self.getProblem(),
+                                            starting_point=self.getStartingPoint(),
+                                            use_objectives_gradient=self.__use_objectives_gradient,
+                                            use_constraints_gradient=self.__use_constraints_gradient,
+                                            input_hints=self.__input_hints.get_list(),
+                                            objective_hints=self.__objective_hints.get_list(),
+                                            equality_hints=self.__equality_hints.get_list(),
+                                            inequality_hints=self.__inequality_hints.get_list())
+        self.__p7_problem.set_history(memory=True)
+        self.__p7_result = gtopt.Solver().solve(problem=self.__p7_problem, options=self.__options.get(),
                                                 sample_x=self.__sample_x, sample_f=self.__sample_f,
                                                 sample_c=self.__sample_c)
         # Convert None values to nan in history
-        history = np.array(p7_problem.designs, dtype=np.float)
+        self.__p7_history = np.array(self.__p7_problem.designs, dtype=np.float)
+        # In case of maximization problem
         if not self.getProblem().isMinimization():
-                history[:, self.__input_dim: self.__input_dim + self.__objectives_dim] *= -1
-        self.__p7_history = history
-        # Convert p7 result object to openturns result
-        self.__ot_result = self.__get_ot_result(len(self.__p7_history))
+                self.__p7_history[:, self.__input_dim: self.__input_dim + self.__objectives_dim] *= -1
+        # Convert p7 result to openturns result
+        self.__ot_result = self.__get_ot_result(iteration_number=len(self.__p7_history))
 
     def getMaximumIterationNumber(self):
         """
-        Accessor to maximum allowed number of iterations.
+        Get the maximum allowed number of iterations.
 
         Returns
         -------
-        N : int
+        maximumIterationNumber: int
             Maximum allowed number of iterations.
         """
         # Default value is 0
@@ -170,22 +239,22 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
     def setMaximumIterationNumber(self, value):
         """
-        Accessor to maximum allowed number of iterations.
+        Set the maximum allowed number of iterations.
 
         Parameters
         ----------
-        N : int
+        maximumIterationNumber: int
             Maximum allowed number of iterations.
         """
         self.__options.set('GTOpt/MaximumIterations', value)
 
     def getVerbose(self):
         """
-        Accessor to the verbosity flag.
+        Get the verbosity flag.
 
         Returns
-        ----------
-        verbose : bool
+        -------
+        verbose: bool
             Verbosity flag state.
         """
         # Default value is False
@@ -193,11 +262,11 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
     def setVerbose(self, value):
         """
-        Accessor to the verbosity flag.
+        Set the verbosity flag.
 
         Parameters
         ----------
-        verbose : bool
+        verbose: bool
             Verbosity flag state.
         """
         self.__options.set('GTOpt/VerboseOutput', value)
@@ -216,9 +285,8 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
         Returns
         -------
-        useObjectivesGradient : bool
-            Flag telling whether the analytical gradients of objective functions are enabled.
-            It is disabled by default.
+        useObjectivesGradient: bool
+            Flag telling whether the analytical gradients of objective functions are enabled (Default: False).
         """
         return self.__use_objectives_gradient
 
@@ -236,115 +304,106 @@ class GTOpt(ot.OptimizationSolverImplementation):
 
         Returns
         -------
-        useConstraintGradient : bool
-            Flag telling whether the analytical gradients of constraint functions are enabled.
-            It is disabled by default.
+        useConstraintGradient: bool
+            Flag telling whether the analytical gradients of constraint functions are enabled (Default: False)
         """
         return self.__use_constraints_gradient
 
+    def getInputHints(self):
+        """
+        Get the properties of defined design variables.
+
+        Returns
+        -------
+        hints: dictionary
+            Hints (dictionary keys) and their values.
+        """
+        return self.__input_hints.get_list()
+
     def setInputHints(self, hints, indices=None):
         """
-        Set additional properties of defined design variables.
+        Set the properties of defined design variables.
 
         Parameters
         ----------
-        hints : dictionary
+        hints: dictionary
             Hints (dictionary keys) and their values.
-        indices : list of integers or None (all of them)
+        indices: list of integers or None (all of them)
             Set of indices for which the hints will be applied.
         """
-        self.__input_hints = self.__add_hints(hints_list=self.__input_hints, dimension=self.__input_dim,
-                                              hints=hints, indices=indices)
+        self.__input_hints.apply(hints=hints, indices=indices)
+
+    def getObjectiveHints(self):
+        """
+        Get the properties of defined objective functions.
+
+        Returns
+        -------
+        hints: dictionary
+            Hints (dictionary keys) and their values.
+        """
+        return self.__objective_hints.get_list()
 
     def setObjectiveHints(self, hints, indices=None):
         """
-        Set additional properties of defined objective functions.
+        Set the properties of defined objective functions.
 
         Parameters
         ----------
-        hints : dictionary
+        hints: dictionary
             Hints (dictionary keys) and their values.
-        indices : list of integers or None (all of them)
+        indices: list of integers or None (all of them)
             Set of indices for which the hints will be applied.
         """
-        self.__objective_hints = self.__add_hints(hints_list=self.__objective_hints, dimension=self.__objectives_dim,
-                                                  hints=hints, indices=indices)
+        self.__objective_hints.apply(hints=hints, indices=indices)
+
+    def getEqualityConstraintHints(self):
+        """
+        Get the properties of defined equality constraints.
+
+        Returns
+        -------
+        hints: dictionary
+            Hints (dictionary keys) and their values.
+        """
+        return self.__equality_hints.get_list()
 
     def setEqualityConstraintHints(self, hints, indices=None):
         """
-        Set additional properties of defined equality constraints.
+        Set the properties of defined equality constraints.
 
         Parameters
         ----------
-        hints : dictionary
+        hints: dictionary
             Hints (dictionary keys) and their values.
-        indices : list of integers or None (all of them)
+        indices: list of integers or None (all of them)
             Set of indices for which the hints will be applied.
         """
-        self.__equality_hints = self.__add_hints(hints_list=self.__equality_hints, dimension=self.__equality_dim,
-                                                 hints=hints, indices=indices)
+        self.__equality_hints.apply(hints=hints, indices=indices)
+
+    def getInequalityConstraintHints(self):
+        """
+        Get the properties of defined inequality constraints.
+
+        Returns
+        -------
+        hints: dictionary
+            Hints (dictionary keys) and their values.
+        """
+        return self.__inequality_hints.get_list()
 
     def setInequalityConstraintHints(self, hints, indices=None):
         """
-        Set additional properties of defined inequality constraints.
+        Set the properties of defined inequality constraints.
 
         Parameters
         ----------
-        hints : dictionary
+        hints: dictionary
             Hints (dictionary keys) and their values.
-        indices : list of integers or None (all of them)
+        indices: list of integers or None (all of them)
             Set of indices for which the hints will be applied.
         """
-        self.__inequality_hints = self.__add_hints(hints_list=self.__inequality_hints, dimension=self.__inequality_dim,
-                                                   hints=hints, indices=indices)
-
-    # Check arguments and create valid list of hints that are to be used to prepare p7 problem.
-    # hints_list will be used as a basis
-    # hints will be applied to the elements with the corresponding indices of the hints_list.
-    def __add_hints(self, hints_list, dimension, hints=None, indices=None):
-        # Check hints_list if specified
-        if hints_list is None:
-            # Default result
-            hints_list = [{}] * dimension
-        else:
-            # hints_list should be a list
-            if not isinstance(hints_list, list):
-                raise TypeError("Wrong type of hints list. Expected: list of dictionaries, got: %s" % type(hints_list))
-            # Check the length of the hints_list
-            if len(hints_list) != dimension:
-                raise ValueError("Wrong length of hints list, Expected: %s, got: %s" % (dimension, len(hints_list)))
-            # Elements of the hints_list should be a dictionary
-            invalid_hints = [type(item) for item in hints_list if not isinstance(item, dict)]
-            if invalid_hints:
-                raise TypeError("Wrong type of hints. Expected: dictionary, got: %s" % invalid_hints)
-        # Check hints if specified, otherwise return hints_list without modifying
-        if hints is None and indices is None:
-            return hints_list
-        elif not isinstance(item, dict):
-            # hints should be a dictionary
-            raise TypeError("Wrong type of hints. Expected: dictionary, got: %s" % type(hints))
-        # Check indicies if specified
-        if indices is None:
-            # hints will be set to each element of the hints_list
-            indices = range(dimension)
-        else:
-            # indices should be a list of integers or a single integer
-            if isinstance(indices, int):
-                # In case of getting a single index instead of an indices list
-                indices = [indices]
-            elif isinstance(indices, list):
-                # Remove dublicates from the indicies list
-                indices = list(set(indices))
-                # Indices should be in valid range [0, dimension-1]
-                invalid_indices = [item for item in indices if item not in range(dimension)]
-                if invalid_indices:
-                    raise ValueError("The indices must be in range 0...%s, got %s" % (dimension-1, invalid_indices))
-            else:
-                raise TypeError("Wrong type of indices. Expected: list or integer, got: %s" % (type(indices)))
-        # Modify the resulting list of hints
-        for i in indices:
-            hints_list[i] = hints
-        return hints_list
+        self.__inequality_hints.apply(hints=hints, indices=indices)
 
     def __get_ot_result(self, iteration_number):
         optimal_x = self.__p7_result.optimal.x

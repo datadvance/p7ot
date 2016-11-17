@@ -23,25 +23,54 @@ import numpy as np
 
 
 class ModelFunction(ot.NumericalMathFunction):
-    def __new__(self, inputs_dimension, outputs_dimension, p7_model):
+    """
+    Approximation model.
+
+    Parameters
+    ----------
+    inputs_dimension: positive int
+        The inputs dimension.
+    outputs_dimension: positive int
+        The outputs dimension.
+    p7_model: :class:`~da.p7core.gtapprox.Model`
+        p7core approximation model.
+
+    Notes
+    -----
+    You have to build approximation model by means of p7core to use it as NumericalMathFunction.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import da.p7core.gtapprox as gtapprox
+    >>> import p7ot
+    >>> inputs = np.random.random((30, 2))
+    >>> outputs = [[x1*x1 + x2*x2] for (x1, x2) in inputs]
+    >>> p7_model = gtapprox.Builder().build(inputs, outputs)
+    >>> function = p7ot.ModelFunction(p7_model)
+    >>> print function([2, 2])
+    [7.95365]
+    """
+    def __new__(self, p7_model):
         if not isinstance(p7_model, gtapprox.Model):
-            raise TypeError('no p7 model given. Expected ' + str(gtapprox.Model) + ' object')
+            raise TypeError('No p7 model given. Expected ' + str(gtapprox.Model) + ' object')
         # Create an intermediate function to fill execution methods for NumericalMathFunction
-        ot_python_function = ot.OpenTURNSPythonFunction(inputs_dimension, outputs_dimension)
+        ot_python_function = ot.OpenTURNSPythonFunction(p7_model.size_x, p7_model.size_f)
         ot_python_function._exec = p7_model.calc
         ot_python_function._exec_sample = p7_model.calc
-        function = ot.NumericalMathFunction(ot_python_function)
-        gradient_implementation = _Gradient(inputs_dimension, outputs_dimension, p7_model)
-        # Gradient object can't be passed directly because of misunderstanding with swig
+        result = ot.NumericalMathFunction(ot_python_function)
+        # Gradient object can't be passed directly
         # Here the required gradient methods are implemented manually
-        function.getGradient = lambda: gradient_implementation
-        function.gradient = gradient_implementation.gradient
-        function.getGradientCallsNumber = gradient_implementation.getCallsNumber
-        function.setGradient(gradient_implementation)
-        return function
+        gradient_implementation = _Gradient(p7_model.size_x, p7_model.size_f, p7_model)
+        result.getGradient = lambda: gradient_implementation
+        result.gradient = gradient_implementation.gradient
+        result.getGradientCallsNumber = gradient_implementation.getCallsNumber
+        result.setGradient(gradient_implementation)
+        return result
 
 
 class _Gradient(ot.NumericalMathGradientImplementation):
+
     def __init__(self, inputs_dimension, outputs_dimension, p7_model):
         self.__p7_model = p7_model
         self.__calls_number = 0
@@ -62,13 +91,13 @@ class _Gradient(ot.NumericalMathGradientImplementation):
             raise ValueError('Wrong shape %s of input array, required: (%s,)' % (shape, self.__inputs_dimension))
 
     def getCallsNumber(self):
-        # Returns the gradient methods calls number
+        # Get the calls number
         return self.__calls_number
 
     def getInputDimension(self):
-        # Returns NumericalMathFunction input dimension (the number of columns in Jacobian matrix)
+        # Get the number of the inputs (columns in Jacobian matrix).
         return self.__inputs_dimension
 
     def getOutputDimension(self):
-        # Returns NumericalMathFunction output dimension (the number of rows in Jacobian matrix)
+        # Get number of the outputs (rows in Jacobian matrix)
         return self.__outputs_dimension
