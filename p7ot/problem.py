@@ -27,7 +27,6 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
                  input_hints, objective_hints, equality_hints, inequality_hints):
         super(_ProblemGeneric, self).__init__()
         # Prepare information required for p7 problem
-        # openturns.OptimizationProblem object
         self.ot_problem = problem
         # Objectives, constraints, gradients functions (openturns.NumericalMathFunction objects)
         self.ot_objectives = problem.getObjective()
@@ -195,8 +194,8 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
                 variables_bounds.append([None, None])
         return variables_bounds
 
-    # Calculate the certain part of outputs using the apropriate function
     def __calc_partially(self, function, x, mask):
+        # Calculate the certain part of outputs using the apropriate function
         result = [None] * len(mask)
         if all(mask):
             # Calculate and return all values, convert returned ot.NumericalPoint to list
@@ -212,8 +211,8 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
                 result[result_index] = marginal_result[i]
         return result
 
-    # Calculate the certain part of gradient using the apropriate function
     def __calc_gradient_partially(self, function, x, mask):
+        # Calculate the certain part of gradient using the apropriate function
         # Partially gradient calculation is supported by openturns for outputs only (Jacobian rows)
         result = [None] * len(mask)
         # Fill mask for outputs

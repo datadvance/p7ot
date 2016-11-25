@@ -17,10 +17,10 @@ REQUIREMENTS
 ------------
 
 *   pSeven Core 6.9
-*   OpenTURNS 1.7 (OpenTURNS 1.8rc2 for ExperimentImplementaion exchange)
+*   OpenTURNS 1.7 or 1.8 (OpenTURNS 1.8 for ExperimentImplementaion exchange)
 *   numpy 1.6.1
 
-p7ot has been tested with OpenTURNS 1.7 on Linux operating systems.      
+p7ot has been tested with OpenTURNS 1.7 and 1.8 on Linux operating systems.
 
 
 QUICK START

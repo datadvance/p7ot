@@ -21,6 +21,7 @@ import openturns as ot
 from da.p7core import gtopt
 from .problem import _ProblemGeneric
 import numpy as np
+from distutils.version import LooseVersion
 
 
 class _HintsList(object):
@@ -424,5 +425,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         # Create optimization result object
         # Absolute, constraint, residual and relative errors are not supported by p7 builder.
         # For additional information about the solving process see getP7Result() and getP7History()
-        ot_result = ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1)
-        return ot_result
+        if LooseVersion(ot.__version__) >= LooseVersion('1.8'):
+            return ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1, self.getProblem())
+        else:
+            return ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1)

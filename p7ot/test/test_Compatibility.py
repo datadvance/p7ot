@@ -1,3 +1,22 @@
+#
+# coding: utf-8
+#
+# Copyright (C) DATADVANCE, 2016
+#
+# This library is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# along with this library.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import unittest
 import numpy as np
 import math
@@ -8,6 +27,7 @@ from da.p7core import gtopt
 from ..gtdoe import Sequence, AdaptiveBlackbox
 from ..gtapprox import ModelFunction
 from ..gtopt import GTOpt
+from distutils.version import LooseVersion
 
 
 class TestCompatibility(unittest.TestCase):
@@ -16,7 +36,7 @@ class TestCompatibility(unittest.TestCase):
         # Experiment implementation
         p7ot_experiment = Sequence(count=10, bounds=ot.Interval(3))
         p7ot_result = p7ot_experiment.generate()
-        if ot.__version__ is '1.8' or ot.__version__ >= '1.8rc2':
+        if LooseVersion(ot.__version__) >= LooseVersion('1.8') and LooseVersion(ot.__version__) != LooseVersion('1.8rc1'):
             myExperiment = ot.Experiment(p7ot_experiment)
             myExperimentImplementation = myExperiment.getImplementation()
             mySecondExperiment = ot.Experiment()
