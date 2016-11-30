@@ -20,6 +20,7 @@
 import numpy as np
 import openturns as ot
 from da.p7core import gtdoe
+
 from .blackbox import _Blackbox
 
 
@@ -60,7 +61,7 @@ class _DoeSettings(object):
         'oneStepCount': 'GTDoE/Adaptive/OneStepCount',
         'trainIterations': 'GTDoE/Adaptive/TrainIterations',
         # Box-Behnken DoE options
-        'isFull': 'GTDOE/BoxBehnken/IsFull',
+        'isFull': 'GTDoE/BoxBehnken/IsFull',
         # OptimalDesign DoE options
         'model': 'GTDoE/OptimalDesign/Model',
         'tries': 'GTDoE/OptimalDesign/Tries',
@@ -68,8 +69,7 @@ class _DoeSettings(object):
     }
 
     def __init__(self):
-        self.__settings = {}
-        self.__settings['options'] = {}
+        self.__settings = {'options': {}}
         self.__options = gtdoe.Generator().options
 
     def set_all(self, **kwargs):
@@ -95,7 +95,7 @@ class _DoeSettings(object):
             return self.__settings.get(key)
 
 
-class _P7Experiment(object):
+class _Experiment(object):
     """
     Base class for da.p7core.gtdoe techniques.
 
@@ -106,14 +106,16 @@ class _P7Experiment(object):
     count: int, long
         The number of points to generate.
     """
+
     def __init__(self, bounds, count):
         self.__generator = gtdoe.Generator()
         self.__p7_result = None
+        self.__bounds = None
         # preparing the parameters of p7core.gtdoe generate method
         self._settings = _DoeSettings()
         self.setBounds(bounds)
         self.setCount(count)
-        super(_P7Experiment, self).__init__()
+        super(_Experiment, self).__init__()
 
     def generate(self):
         """
@@ -186,7 +188,7 @@ class _P7Experiment(object):
             The number of points to generate.
         """
         if not isinstance(count, (int, long)):
-            raise TypeError("Wrong 'count' type %s! Required: int or long" % (type(count).__name__))
+            raise TypeError("Wrong 'count' type %s! Required: int or long" % type(count).__name__)
         if count <= 0:
             raise ValueError("Argument 'count' must be > 0")
         self._settings.set('count', count)
@@ -247,7 +249,7 @@ class _P7Experiment(object):
             algorithms if deterministic option is on. If deterministic is off, the seed value is ignored.
         """
 
-        return self._settings.get(seed)
+        return self._settings.get('seed')
 
     def setSeed(self, seed):
         """
@@ -353,7 +355,7 @@ class _P7Experiment(object):
         return self.__p7_result
 
 
-class Sequence(_P7Experiment):
+class Sequence(_Experiment):
     """
     Sequential design of experiments.
 
@@ -384,6 +386,7 @@ class Sequence(_P7Experiment):
     technique: "RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq"
         The generation algorithm to use (Default: "SobolSeq").
     """
+
     def __init__(self, bounds, count,
                  deterministic=None, seed=None,
                  logLevel=None, maxParallel=None,
@@ -464,14 +467,14 @@ class Sequence(_P7Experiment):
             self._settings.set('technique', "SobolSeq")
         else:
             if not isinstance(technique, str):
-                raise TypeError("Wrong 'technique' type %s! Required: str" % (type(technique).__name__))
+                raise TypeError("Wrong 'technique' type %s! Required: str" % type(technique).__name__)
             if technique not in ["RandomSeq", "SobolSeq", "HaltonSeq", "FaureSeq"]:
-                raise ValueError("Unknown 'technique' value '%s'." % (technique) +
+                raise ValueError("Unknown 'technique' value '%s'." % technique +
                                  " Expected values are: 'RandomSeq', 'HaltonSeq', 'SobolSeq', 'FaureSeq'")
             self._settings.set('technique', technique)
 
 
-class LHS(_P7Experiment):
+class LHS(_Experiment):
     """
     Latin Hypercube Sampling (LHS) design of experiments.
 
@@ -504,6 +507,7 @@ class LHS(_P7Experiment):
     iterations: integer in range [2, 65535]
         Maximum number of optimization iterations in OLHS generation (Default: 300).
     """
+
     def __init__(self, bounds, count,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
@@ -511,7 +515,7 @@ class LHS(_P7Experiment):
                  useOptimized=False, iterations=None):
         super(LHS, self).__init__(bounds=bounds, count=count)
         if not isinstance(useOptimized, bool):
-            raise TypeError("Wrong 'useOptimized' type %s! Required: bool" % (type(useOptimized).__name__))
+            raise TypeError("Wrong 'useOptimized' type %s! Required: bool" % type(useOptimized).__name__)
         self.__use_optimized = useOptimized
         technique = "OLHS" if useOptimized else "LHS"
         self._settings.set_all(categoricalVariables=categoricalVariables,
@@ -563,7 +567,7 @@ class LHS(_P7Experiment):
         self._settings.set('iterations', iterations)
 
 
-class BoxBehnken(_P7Experiment):
+class BoxBehnken(_Experiment):
     """
     Box-Behnken design of experiments.
 
@@ -597,6 +601,7 @@ class BoxBehnken(_P7Experiment):
         given by the OMP_NUM_THREADS environment variable, which by default is equal to the number of virtual
         processors, including hyperthreading CPUs.
     """
+
     def __init__(self, bounds, count=None,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
@@ -624,7 +629,7 @@ class BoxBehnken(_P7Experiment):
             super(BoxBehnken, self).setCount(count)
 
 
-class FullFactorial(_P7Experiment):
+class FullFactorial(_Experiment):
     """
     Full factorial design of experiments (uniform mesh).
 
@@ -653,6 +658,7 @@ class FullFactorial(_P7Experiment):
         given by the OMP_NUM_THREADS environment variable, which by default is equal to the number of virtual
         processors, including hyperthreading CPUs.
     """
+
     def __init__(self, bounds, count,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
@@ -664,7 +670,7 @@ class FullFactorial(_P7Experiment):
                                technique='FullFactorial')
 
 
-class FractionalFactorial(_P7Experiment):
+class FractionalFactorial(_Experiment):
     """
     Fractional factorial design of experiments.
 
@@ -716,6 +722,7 @@ class FractionalFactorial(_P7Experiment):
     -----
     A design consisting of a subset (fraction) of a full factorial design.
     """
+
     def __init__(self, bounds, count,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
@@ -799,7 +806,7 @@ class FractionalFactorial(_P7Experiment):
         self._settings.set('mainFactors', mainFactors)
 
 
-class OptimalDesign(_P7Experiment):
+class OptimalDesign(_Experiment):
     """
     Optimal design of experiments for response surface models.
 
@@ -841,6 +848,7 @@ class OptimalDesign(_P7Experiment):
         the parameter estimates. I-optimality (integrated): seeks to minimize the average prediction variance over
         the design space.
     """
+
     def __init__(self, bounds, count,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
@@ -934,7 +942,7 @@ class OptimalDesign(_P7Experiment):
         self._settings.set('criterionType', criterionType)
 
 
-class OrthogonalArray(_P7Experiment):
+class OrthogonalArray(_Experiment):
     """
     Design of experiments with multilevel discrete design variables.
 
@@ -969,6 +977,7 @@ class OrthogonalArray(_P7Experiment):
     multistartIterations: integer in range [1, 1000]
         Number of algorithm multistart iterations (Default: 10).
     """
+
     def __init__(self, bounds, levelsNumber,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
@@ -1069,7 +1078,7 @@ class OrthogonalArray(_P7Experiment):
         self._settings.set('multistartIterations', multistartIterations)
 
 
-class ParametricStudy(_P7Experiment):
+class ParametricStudy(_Experiment):
     """
     Parametric study process (select a central point and generate points from center by changing one component)
 
@@ -1093,6 +1102,7 @@ class ParametricStudy(_P7Experiment):
         given by the OMP_NUM_THREADS environment variable, which by default is equal to the number of virtual
         processors, including hyperthreading CPUs.
     """
+
     def __init__(self, bounds, count,
                  deterministic=None, seed=None,
                  logLevel=None, maxParallel=None):
@@ -1102,11 +1112,11 @@ class ParametricStudy(_P7Experiment):
                                technique='ParametricStudy')
 
 
-class _Adaptive(_P7Experiment):
+class _Adaptive(_Experiment):
 
     def _check_initial_sample(self, sample):
         if not isinstance(sample, (list, tuple, np.ndarray, ot.NumericalSample, ot.NumericalPoint)):
-            raise TypeError("Wrong initial sample type %s! Required: array-like" % (type(sample).__name__))
+            raise TypeError("Wrong initial sample type %s! Required: array-like" % type(sample).__name__)
 
     def getInitX(self):
         """
@@ -1370,16 +1380,20 @@ class AdaptiveBlackbox(_Adaptive):
         assumption, however, is not always true, especially when training set is not big enough to ensure that
         approximation has reasonable quality. This option sets the number of steps between rebuilds.
     """
+
     def __init__(self, blackbox, bounds, count,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
                  logLevel=None, maxParallel=None,
-                 init_x=[], init_y=[], initialDoeTechnique=None,
+                 init_x=None, init_y=None, initialDoeTechnique=None,
                  accelerator=None, annealingCount=None, criterion=None,
                  exactFitRequired=None, internalValidation=None,
                  initialCount=None, oneStepCount=None, trainIterations=None):
         super(AdaptiveBlackbox, self).__init__(bounds=bounds, count=count)
+        init_x = [] if init_x is None else init_x
+        init_y = [] if init_y is None else init_y
         self.__p7_blackbox = None
+        self.__blackbox = None
         self.setBlackbox(blackbox)
         self.setInitX(init_x)
         self.setInitY(init_y)
@@ -1415,7 +1429,7 @@ class AdaptiveBlackbox(_Adaptive):
             raise TypeError("Wrong 'blackbox' type %s! Required: %s" %
                             (type(blackbox).__name__, ot.NumericalMathFunction))
         # Must be checked to prepare blackbox without fails (p7core gtdoe will do the same thing later).
-        bounds_dimension = self._P7Experiment__bounds.getDimension()
+        bounds_dimension = self.getBounds().getDimension()
         blackbox_dimension = blackbox.getInputDimension()
         if bounds_dimension != blackbox_dimension:
             raise ValueError("Inconsistent blackbox and bounds dimension")
@@ -1457,7 +1471,7 @@ class AdaptiveBlackbox(_Adaptive):
             The number of points to generate.
         """
         if not isinstance(count, (int, long)):
-            raise TypeError("Wrong 'count' type %s! Required: int or long" % (type(count).__name__))
+            raise TypeError("Wrong 'count' type %s! Required: int or long" % type(count).__name__)
         if count <= 0:
             raise ValueError("Argument 'count' must be > 0")
         # count is not for the blackbox-based adaptive DoE, use budget
@@ -1663,13 +1677,15 @@ class AdaptiveSample(_Adaptive):
         This is due to the fact that sample-based adaptive DoE with initial input part only is just random uniform
         generation which does not involve approximation models, so the option has no sense.
     """
+
     def __init__(self, bounds, count, init_x,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
                  logLevel=None, maxParallel=None,
-                 init_y=[], accelerator=None, annealingCount=None,
+                 init_y=None, accelerator=None, annealingCount=None,
                  criterion=None, exactFitRequired=None, internalValidation=None):
         super(AdaptiveSample, self).__init__(bounds=bounds, count=count)
+        init_y = [] if init_y is None else init_y
         self.setInitX(init_x)
         self.setInitY(init_y)
         self._settings.set_all(categoricalVariables=categoricalVariables,
@@ -1738,6 +1754,7 @@ class AdaptiveLHS(LHS):
     iterations: integer in range [2, 65535]
         Maximum number of optimization iterations in OLHS generation (Default: 300).
     """
+
     def __init__(self, bounds, count, init_x,
                  categoricalVariables=None,
                  deterministic=None, seed=None,
@@ -1752,7 +1769,7 @@ class AdaptiveLHS(LHS):
 
     def _check_initial_sample(self, sample):
         if not isinstance(sample, (list, tuple, np.ndarray, ot.NumericalSample, ot.NumericalPoint)):
-            raise TypeError("Wrong initial sample type %s! Required: array-like" % (type(sample).__name__))
+            raise TypeError("Wrong initial sample type %s! Required: array-like" % type(sample).__name__)
 
     def getInitX(self):
         """

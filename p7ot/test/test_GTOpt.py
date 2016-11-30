@@ -17,16 +17,18 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import openturns as ot
 import unittest
+
 import numpy as np
+import openturns as ot
 from da.p7core import gtopt
+
 from ..gtopt import GTOpt
 
 
 class TestGTOpt(unittest.TestCase):
 
-    def compare_results(self, p7ot_result, problem, maximization=False, level_value=None):
+    def compare_results(self, p7ot_result, problem, maximization=False):
         # Solve optimization problem
         p7_result = gtopt.Solver().solve(problem)
         # Compare results
@@ -42,7 +44,7 @@ class TestGTOpt(unittest.TestCase):
         function = ot.NumericalMathFunction(['x1', 'x2'], ['(x1-0.6)^2 + (x2-0.6)^2'])
         # Bounds
         with self.assertRaises(ValueError):
-            bounds = ot.Interval([-5]*3, [5]*3)
+            bounds = ot.Interval([-5] * 3, [5] * 3)
             problem = ot.OptimizationProblem()
             problem.setObjective(function)
             problem.setBounds(bounds)
@@ -51,7 +53,7 @@ class TestGTOpt(unittest.TestCase):
             solver.run()
         # Initial guess
         with self.assertRaises(ValueError):
-            bounds = ot.Interval([-5]*2, [5]*2)
+            bounds = ot.Interval([-5] * 2, [5] * 2)
             problem = ot.OptimizationProblem()
             problem.setObjective(function)
             problem.setBounds(bounds)
@@ -60,7 +62,7 @@ class TestGTOpt(unittest.TestCase):
             solver.run()
         # Constraints
         with self.assertRaises(ValueError):
-            bounds = ot.Interval([-5]*2, [5]*2)
+            bounds = ot.Interval([-5] * 2, [5] * 2)
             problem = ot.OptimizationProblem()
             problem.setObjective(function)
             problem.setEqualityConstraint(ot.NumericalMathFunction(['x1', 'x2', 'x3'], ['x1-x2']))
@@ -68,14 +70,14 @@ class TestGTOpt(unittest.TestCase):
             solver = GTOpt(problem)
             solver.run()
         # Hints
-        bounds = ot.Interval([-5]*2, [5]*2)
+        bounds = ot.Interval([-5] * 2, [5] * 2)
         problem = ot.OptimizationProblem()
         problem.setObjective(function)
         problem.setBounds(bounds)
         with self.assertRaises(TypeError):
-            solver = GTOpt(problem, input_hints={})
+            GTOpt(problem, input_hints={})
         with self.assertRaises(ValueError):
-            solver = GTOpt(problem, input_hints=[{}])
+            GTOpt(problem, input_hints=[{}])
         with self.assertRaises(Exception):
             solver = GTOpt(problem, input_hints=[{"@GTOpt/VariableType": "int"}, {}])
             solver.run()
@@ -91,14 +93,14 @@ class TestGTOpt(unittest.TestCase):
 
     def test_Maximization(self):
         dim = 2
-        bounds = ot.Interval([-500]*dim, [500]*dim)
+        bounds = ot.Interval([-500] * dim, [500] * dim)
         # Objective function
         objective = ot.NumericalMathFunction(['x1', 'x2'], ['- (x1+2*x2-7)^2 - (2*x1+x2-5)^2 + 1'])
         # Define optimization problem
         problem = ot.OptimizationProblem()
         problem.setObjective(objective)
         problem.setBounds(bounds)
-        # Maximizaion problem
+        # Maximization problem
         problem.setMinimization(False)
         # Prepare solver
         solver = GTOpt(problem)
@@ -133,11 +135,11 @@ class TestGTOpt(unittest.TestCase):
 
     def test_Rosenbrock(self):
         dim = 4
-        bounds = ot.Interval([-500]*dim, [500]*dim)
+        bounds = ot.Interval([-500] * dim, [500] * dim)
         inputs = ['x' + str(i) for i in range(dim)]
         formulas = ['']
         for i in range(dim - 1):
-            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i+1, i, '' if i == dim - 2 else '+')
+            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i + 1, i, '' if i == dim - 2 else '+')
         # Objective function
         objective = ot.NumericalMathFunction(inputs, formulas)
         # Define optimization problem
@@ -161,8 +163,8 @@ class TestGTOpt(unittest.TestCase):
 
             def prepare_problem(self):
                 p7_bounds = zip(bounds.getLowerBound(), bounds.getUpperBound())
-                for i in range(dim):
-                    self.add_variable(bounds=p7_bounds[i], initial_guess=solver.getStartingPoint()[i])
+                for j in range(dim):
+                    self.add_variable(bounds=p7_bounds[j], initial_guess=solver.getStartingPoint()[j])
                 self.add_objective()
 
             def evaluate(self, queryx, querymask):
@@ -177,7 +179,7 @@ class TestGTOpt(unittest.TestCase):
 
     def test_LevelFunction(self):
         dim = 4
-        bounds = ot.Interval([-500]*dim, [500]*dim)
+        bounds = ot.Interval([-500] * dim, [500] * dim)
         # Objective function
         level_function = ot.NumericalMathFunction(['x1', 'x2', 'x3', 'x4'], ['x1+2*x2-3*x3+4*x4'])
         level_value = 3
@@ -229,16 +231,16 @@ class TestGTOpt(unittest.TestCase):
                     output_masks_batch.append(mask)
                 return functions_batch, output_masks_batch
 
-        self.compare_results(p7ot_result=solver.getP7Result(), problem=Problem(), level_value=level_value)
+        self.compare_results(p7ot_result=solver.getP7Result(), problem=Problem())
 
     def test_Multiobjective(self):
         dim = 4
-        bounds = ot.Interval([-500]*dim, [500]*dim)
+        bounds = ot.Interval([-500] * dim, [500] * dim)
         inputs = ['x' + str(i) for i in range(dim)]
         # Rosenbrock function
         formulas = ['']
         for i in range(dim - 1):
-            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i+1, i, '' if i == dim - 2 else '+')
+            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i + 1, i, '' if i == dim - 2 else '+')
         rosenbrock = ot.NumericalMathFunction(inputs, formulas)
         # Sphere function
         formulas = ['']
@@ -268,8 +270,8 @@ class TestGTOpt(unittest.TestCase):
 
             def prepare_problem(self):
                 p7_bounds = zip(bounds.getLowerBound(), bounds.getUpperBound())
-                for i in range(dim):
-                    self.add_variable(bounds=p7_bounds[i], initial_guess=solver.getStartingPoint()[i])
+                for j in range(dim):
+                    self.add_variable(bounds=p7_bounds[j], initial_guess=solver.getStartingPoint()[j])
                 self.add_objective()
                 self.add_objective()
 
@@ -285,12 +287,12 @@ class TestGTOpt(unittest.TestCase):
 
     def test_MultiobjectiveWithConstraints(self):
         dim = 4
-        bounds = ot.Interval([-500]*dim, [500]*dim)
+        bounds = ot.Interval([-500] * dim, [500] * dim)
         inputs = ['x' + str(i) for i in range(dim)]
         # Rosenbrock function
         formulas = ['']
         for i in range(dim - 1):
-            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i+1, i, '' if i == dim - 2 else '+')
+            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i + 1, i, '' if i == dim - 2 else '+')
         rosenbrock = ot.NumericalMathFunction(inputs, formulas)
         # Sphere function
         formulas = ['']
@@ -300,7 +302,7 @@ class TestGTOpt(unittest.TestCase):
         # Objective function
         objective = ot.NumericalMathFunction([rosenbrock, sphere])
         # Equality constraint
-        equality = ot.NumericalMathFunction(inputs, ['x0-3*x%d' % (dim-1)])
+        equality = ot.NumericalMathFunction(inputs, ['x0-3*x%d' % (dim - 1)])
         # Define optimization problem
         problem = ot.OptimizationProblem()
         problem.setObjective(objective)
@@ -323,8 +325,8 @@ class TestGTOpt(unittest.TestCase):
 
             def prepare_problem(self):
                 p7_bounds = zip(bounds.getLowerBound(), bounds.getUpperBound())
-                for i in range(dim):
-                    self.add_variable(bounds=p7_bounds[i], initial_guess=solver.getStartingPoint()[i])
+                for j in range(dim):
+                    self.add_variable(bounds=p7_bounds[j], initial_guess=solver.getStartingPoint()[j])
                 self.add_objective()
                 self.add_objective()
                 self.add_constraint(bounds=(0.0, 0.0))
@@ -341,12 +343,12 @@ class TestGTOpt(unittest.TestCase):
 
     def test_MultiobjectiveWithConstraintsAndGradients(self):
         dim = 4
-        bounds = ot.Interval([-500]*dim, [500]*dim)
+        bounds = ot.Interval([-500] * dim, [500] * dim)
         inputs = ['x' + str(i) for i in range(dim)]
         # Rosenbrock function
         formulas = ['']
         for i in range(dim - 1):
-            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i+1, i, '' if i == dim - 2 else '+')
+            formulas[0] += '(1-x%d)^2+100*(x%d-x%d^2)^2%s' % (i, i + 1, i, '' if i == dim - 2 else '+')
         rosenbrock = ot.NumericalMathFunction(inputs, formulas)
         # Sphere function
         formulas = ['']
@@ -356,7 +358,7 @@ class TestGTOpt(unittest.TestCase):
         # Objective function
         objective = ot.NumericalMathFunction([rosenbrock, sphere])
         # Inequality constraint
-        inequality = ot.NumericalMathFunction(inputs, ['x0-x%d' % (dim-1)])
+        inequality = ot.NumericalMathFunction(inputs, ['x0-x%d' % (dim - 1)])
         # Define optimization problem
         problem = ot.OptimizationProblem()
         problem.setObjective(objective)
@@ -382,8 +384,8 @@ class TestGTOpt(unittest.TestCase):
 
             def prepare_problem(self):
                 p7_bounds = zip(bounds.getLowerBound(), bounds.getUpperBound())
-                for i in range(dim):
-                    self.add_variable(bounds=p7_bounds[i], initial_guess=solver.getStartingPoint()[i])
+                for j in range(dim):
+                    self.add_variable(bounds=p7_bounds[j], initial_guess=solver.getStartingPoint()[j])
                 self.add_objective()
                 self.add_objective()
                 self.add_constraint(bounds=(0.0, 0.0))

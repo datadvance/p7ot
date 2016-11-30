@@ -17,11 +17,13 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from distutils.version import LooseVersion
+
+import numpy as np
 import openturns as ot
 from da.p7core import gtopt
+
 from .problem import _ProblemGeneric
-import numpy as np
-from distutils.version import LooseVersion
 
 
 class _HintsList(object):
@@ -57,22 +59,23 @@ class _HintsList(object):
         return self.__hints_list
 
     def __validate_indices(self, indices=None):
-        # Check indicies if specified (should be a list of integers or a single integer)
+        # Check indices if specified (should be a list of integers or a single integer)
         if indices is None:
             # hints will be set to each element of the hints list
             indices = range(self.__dimension)
         elif isinstance(indices, int):
             # In case of getting a single index
             if indices not in range(self.__dimension):
-                raise ValueError("The index must be in range 0...%s, got %s" % (self.__dimension-1, indices))
+                raise ValueError("The index must be in range 0...%s, got %s" % (self.__dimension - 1, indices))
             indices = [indices]
         elif isinstance(indices, list):
-            # Remove dublicates from the indicies list
+            # Remove duplicates from the indices list
             indices = list(set(indices))
             # Indices should be in valid range [0, dimension-1]
             invalid_indices = [item for item in indices if item not in range(self.__dimension)]
             if invalid_indices:
-                raise ValueError("The indices must be in range 0...%s, got %s" % (self.__dimension-1, invalid_indices))
+                raise ValueError("The indices must be in range 0...%s, got %s" %
+                                 (self.__dimension - 1, invalid_indices))
         else:
             raise TypeError("Wrong type of indices. Expected: list or integer, got: %s" % (type(indices)))
         return indices
@@ -108,6 +111,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
     sample_c: array-like, 1D or 2D
         Optional initial sample of constraint function values, requires sample_x.
     """
+
     def __init__(self, problem, options=None,
                  input_hints=None, objective_hints=None, equality_hints=None, inequality_hints=None,
                  sample_x=None, sample_f=None, sample_c=None):
@@ -124,7 +128,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         self.__sample_c = sample_c
         self.__use_objectives_gradient = False
         self.__use_constraints_gradient = False
-        # Dimentions
+        # Dimensions
         self.__input_dim = problem.getDimension()
         self.__objectives_dim = problem.getObjective().getOutputDimension()
         self.__equality_dim = problem.getEqualityConstraint().getOutputDimension()
@@ -222,7 +226,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         self.__p7_history = np.array(self.__p7_problem.designs, dtype=np.float)
         # In case of maximization problem
         if not self.getProblem().isMinimization():
-                self.__p7_history[:, self.__input_dim: self.__input_dim + self.__objectives_dim] *= -1
+            self.__p7_history[:, self.__input_dim: self.__input_dim + self.__objectives_dim] *= -1
         # Convert p7 result to openturns result
         self.__ot_result = self.__get_ot_result(iteration_number=len(self.__p7_history))
 
@@ -238,7 +242,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         # Default value is 0
         self.__options.get('GTOpt/MaximumIterations')
 
-    def setMaximumIterationNumber(self, value):
+    def setMaximumIterationNumber(self, maximumIterationNumber):
         """
         Set the maximum allowed number of iterations.
 
@@ -247,7 +251,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         maximumIterationNumber: int
             Maximum allowed number of iterations.
         """
-        self.__options.set('GTOpt/MaximumIterations', value)
+        self.__options.set('GTOpt/MaximumIterations', maximumIterationNumber)
 
     def getVerbose(self):
         """
@@ -261,7 +265,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         # Default value is False
         self.__options.get('GTOpt/VerboseOutput')
 
-    def setVerbose(self, value):
+    def setVerbose(self, verbose):
         """
         Set the verbosity flag.
 
@@ -270,7 +274,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         verbose: bool
             Verbosity flag state.
         """
-        self.__options.set('GTOpt/VerboseOutput', value)
+        self.__options.set('GTOpt/VerboseOutput', verbose)
 
     def enableObjectivesGradient(self):
         """Enable the use of analytical gradients of objective functions."""
@@ -416,7 +420,6 @@ class GTOpt(ot.OptimizationSolverImplementation):
         # In case of optimization problem with level function g(x)=v:
         # 1. level function g(x)=v acts as equality constraint, min||x|| - as objective function
         # 2. the value of level function should be set as optimal
-        optimal_outputs = None
         if self.getProblem().hasLevelFunction():
             level_value = self.getProblem().getLevelValue()
             optimal_outputs = [optimal_c[0] + level_value]
@@ -426,6 +429,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         # Absolute, constraint, residual and relative errors are not supported by p7 builder.
         # For additional information about the solving process see getP7Result() and getP7History()
         if LooseVersion(ot.__version__) >= LooseVersion('1.8'):
-            return ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1, self.getProblem())
+            return ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1,
+                                         self.getProblem())
         else:
             return ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1)

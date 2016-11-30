@@ -32,21 +32,10 @@ Using
 """
 
 
-from .gtdoe import (
-    Sequence,
-    LHS,
-    BoxBehnken,
-    FullFactorial,
-    FractionalFactorial,
-    OptimalDesign,
-    OrthogonalArray,
-    ParametricStudy,
-    AdaptiveBlackbox,
-    AdaptiveSample,
-    AdaptiveLHS
-)
-from .gtopt import GTOpt
 from .gtapprox import ModelFunction
-
+from .gtdoe import (LHS, AdaptiveBlackbox, AdaptiveLHS, AdaptiveSample,
+                    BoxBehnken, FractionalFactorial, FullFactorial,
+                    OptimalDesign, OrthogonalArray, ParametricStudy, Sequence)
+from .gtopt import GTOpt
 
 __version__ = 1.0

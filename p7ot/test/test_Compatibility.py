@@ -17,17 +17,17 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import unittest
-import numpy as np
 import math
-import openturns as ot
-from openturns.viewer import View
-from da.p7core import gtapprox
-from da.p7core import gtopt
-from ..gtdoe import Sequence, AdaptiveBlackbox
-from ..gtapprox import ModelFunction
-from ..gtopt import GTOpt
+import unittest
 from distutils.version import LooseVersion
+
+import numpy as np
+import openturns as ot
+from da.p7core import gtapprox, gtopt
+
+from ..gtapprox import ModelFunction
+from ..gtdoe import AdaptiveBlackbox, Sequence
+from ..gtopt import GTOpt
 
 
 class TestCompatibility(unittest.TestCase):
@@ -53,10 +53,9 @@ class TestCompatibility(unittest.TestCase):
 
     def test_gtapprox(self):
         input_dim = 2
-        output_dim = 1
         count = 10
         inputs = np.random.random((count, input_dim))
-        outputs = [[x1*x1 + x2*x2] for (x1, x2) in inputs]
+        outputs = [[x1 * x1 + x2 * x2] for (x1, x2) in inputs]
         # p7core model
         p7_model = gtapprox.Builder().build(inputs, outputs)
         # p7ot model function
@@ -66,24 +65,22 @@ class TestCompatibility(unittest.TestCase):
         # openturns optimization problem
         ot_optimization_problem = ot.OptimizationProblem()
         ot_optimization_problem.setObjective(p7ot_function)
-        ot_optimization_problem.setBounds(ot.Interval([-100]*2, [100]*2))
+        ot_optimization_problem.setBounds(ot.Interval([-100] * 2, [100] * 2))
         p7ot_solver = GTOpt(ot_optimization_problem)
         p7ot_solver.run()
         # openturns graphic
         input_dim = 1
-        output_dim = 1
         count = 10
         inputs = np.random.uniform(0, 10, [count, input_dim])
         outputs = [math.sin(x) for x in inputs]
         p7ot_function = ModelFunction(gtapprox.Builder().build(inputs, outputs))
         graph = p7ot_function.draw(0, 10, 100)
-        # View(graph).show()
 
     def test_gtopt(self):
         # Schaffer function
         objective = ot.NumericalMathFunction(['x', 'y'], ['0.5 + ((sin(x^2-y^2))^2-0.5)/((1+0.001*(x^2+y^2))^2)'])
-        lb = [-10]*objective.getInputDimension()
-        ub = [10]*objective.getInputDimension()
+        lb = [-10] * objective.getInputDimension()
+        ub = [10] * objective.getInputDimension()
         # Solve by p7ot.GTOpt
         problem = ot.OptimizationProblem()
         problem.setObjective(objective)

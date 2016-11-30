@@ -17,8 +17,8 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from da.p7core import gtopt
 import numpy as np
+from da.p7core import gtopt
 
 
 class _ProblemGeneric(gtopt.ProblemGeneric):
@@ -96,11 +96,11 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
         # Add equality constraints g(x) = 0
         if self.ot_equality is not None:
             for i in range(self.equality_dim):
-                self.add_constraint(bounds=(0.0, 0.0), name=None, hints=self.equality_hints[i])
+                self.add_constraint(bounds=(0.0, 0.0), hints=self.equality_hints[i])
         # Add inequality constraints h(x) > 0
         if self.ot_inequality is not None:
             for i in range(self.inequality_dim):
-                self.add_constraint(bounds=(0.0, None), name=None, hints=self.inequality_hints[i])
+                self.add_constraint(bounds=(0.0, None), hints=self.inequality_hints[i])
         # Enable specified gradients
         if self.ot_objectives_gradient is not None:
             self.enable_objectives_gradient()
@@ -113,15 +113,10 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
         for x, mask in zip(queryx, querymask):
             # Variables are used to fill outputs part by part
             first_value_index = 0
-            last_value_index = 0
-            submask = []
-            values = []
-            # Prepare objectives
-            objectives = [None] * self.objectives_dim
             last_value_index = self.objectives_dim
             submask = mask[first_value_index: last_value_index]
             values = self.__calc_partially(function=self.ot_objectives, x=x, mask=submask)
-            # Assign objectives
+            # Prepare objectives
             objectives = values
             # Prepare constraints
             constraints = [None] * (self.equality_dim + self.inequality_dim)
@@ -195,7 +190,7 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
         return variables_bounds
 
     def __calc_partially(self, function, x, mask):
-        # Calculate the certain part of outputs using the apropriate function
+        # Calculate the certain part of outputs using the appropriate function
         result = [None] * len(mask)
         if all(mask):
             # Calculate and return all values, convert returned ot.NumericalPoint to list
@@ -212,12 +207,12 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
         return result
 
     def __calc_gradient_partially(self, function, x, mask):
-        # Calculate the certain part of gradient using the apropriate function
+        # Calculate the certain part of gradient using the appropriate function
         # Partially gradient calculation is supported by openturns for outputs only (Jacobian rows)
         result = [None] * len(mask)
         # Fill mask for outputs
         # Calculate the row of Jacobian matrix if any of values of the mask for this row is 1
-        outputs_mask = [1 if any(mask[i: i+len(x)]) else 0 for i in range(0, len(mask), len(x))]
+        outputs_mask = [1 if any(mask[i: i + len(x)]) else 0 for i in range(0, len(mask), len(x))]
         if all(outputs_mask):
             # Calculate and return all values as 1D list
             result = sum(self.__to_lists(function.gradient(x)), [])
@@ -226,7 +221,7 @@ class _ProblemGeneric(gtopt.ProblemGeneric):
             # Fill set of indices for which the marginal function will be extracted [0, 1, 0, 1] -> [1, 3]
             marginal_mask = [i for i, item in enumerate(outputs_mask) if item]
             # Extract marginal function and calculate values
-            # marginal_mask - indices of functions to be calculated (rows of Jacodian matrix)
+            # marginal_mask - indices of functions to be calculated (rows of Jacobian matrix)
             marginal_function = function.getMarginal(marginal_mask)
             # Calculate required rows of Jacobian matrix and convert result to lists
             marginal_result = self.__to_lists(marginal_function.gradient(x))

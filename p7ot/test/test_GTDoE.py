@@ -17,23 +17,15 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import openturns as ot
-from da.p7core import gtdoe, blackbox
 import unittest
+
 import numpy as np
-from ..gtdoe import (
-    Sequence,
-    LHS,
-    BoxBehnken,
-    FullFactorial,
-    FractionalFactorial,
-    OptimalDesign,
-    OrthogonalArray,
-    ParametricStudy,
-    AdaptiveBlackbox,
-    AdaptiveSample,
-    AdaptiveLHS
-)
+import openturns as ot
+from da.p7core import blackbox, gtdoe
+
+from ..gtdoe import (LHS, AdaptiveBlackbox, AdaptiveLHS, AdaptiveSample,
+                     BoxBehnken, FractionalFactorial, FullFactorial,
+                     OptimalDesign, OrthogonalArray, ParametricStudy, Sequence)
 
 
 class TestGTDoE(unittest.TestCase):
@@ -44,11 +36,11 @@ class TestGTDoE(unittest.TestCase):
         self.assertTrue(np.array_equal(p7ot_result, p7_result))
 
     def convert_bounds(self, p7ot_bounds):
-        return (np.array(p7ot_bounds.getLowerBound()), np.array(p7ot_bounds.getUpperBound()))
+        return np.array(p7ot_bounds.getLowerBound()), np.array(p7ot_bounds.getUpperBound())
 
     def test_Sequence(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         generator = Sequence(bounds=bounds, count=count)
         generator.setDeterministic(True)
         self.assertEqual(generator.getTechnique(), 'SobolSeq')
@@ -74,14 +66,14 @@ class TestGTDoE(unittest.TestCase):
             Sequence(bounds=ot.Interval([10, 4], [5, 10]), count=0).generate()
         with self.assertRaises(TypeError):
             # Invalid technique
-            exp = Sequence(bounds=ot.Interval([10, 4], [5, 10]), count=10, technique=10)
+            Sequence(bounds=ot.Interval([10, 4], [5, 10]), count=10, technique=10)
         with self.assertRaises(ValueError):
             # Invalid technique
-            exp = Sequence(bounds=ot.Interval([10, 4], [5, 10]), count=10, technique='Random')
+            Sequence(bounds=ot.Interval([10, 4], [5, 10]), count=10, technique='Random')
 
     def test_LHS(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         generator = LHS(bounds=bounds, count=count)
         # Default technique is LHS (useOptimized=False)
         self.assertEqual(generator._settings.get('technique'), 'LHS')
@@ -110,7 +102,7 @@ class TestGTDoE(unittest.TestCase):
             LHS(bounds=ot.Interval([10, 4], [5, 10]), count=0).generate()
 
     def test_BoxBehnken(self):
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         dim = bounds.getDimension()
         count = dim * 2
         generator = BoxBehnken(bounds=bounds, count=count)
@@ -130,18 +122,18 @@ class TestGTDoE(unittest.TestCase):
         # Exceptions
         with self.assertRaises(Exception):
             # Invalid count, should be in range [1, 2d(d-1)+1]
-            BoxBehnken(bounds=bounds, count=dim*5).generate()
+            BoxBehnken(bounds=bounds, count=dim * 5).generate()
 
     def test_FullFactorial(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         dim = bounds.getDimension()
         generator = FullFactorial(bounds=bounds, count=count)
         generator.setDeterministic(True)
         result = generator.generate()
         self.assertEqual(result.getDimension(), bounds.getDimension())
         # Actual number of points to be generated
-        self.assertEqual(result.getSize(), int(count**(1.0/dim))**dim)
+        self.assertEqual(result.getSize(), int(count**(1.0 / dim))**dim)
         technique = generator.getP7Result().info["Generator"]["Technique"]
         self.assertEqual(technique, "FullFactorial")
         # Compare the results with those of p7core generator
@@ -156,7 +148,7 @@ class TestGTDoE(unittest.TestCase):
 
     def test_FractionalFactorial(self):
         count = 4
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         dim = bounds.getDimension()
         generator = FractionalFactorial(bounds=bounds, count=count,
                                         mainFactors=[0, 2], generatingString='a ab b')
@@ -184,7 +176,7 @@ class TestGTDoE(unittest.TestCase):
 
     def test_OptimalDesign(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         generator = OptimalDesign(bounds=bounds, count=count, model="quadratic")
         generator.setDeterministic(True)
         result = generator.generate()
@@ -202,8 +194,7 @@ class TestGTDoE(unittest.TestCase):
         self.compare_results(result, p7_result)
 
     def test_OrthogonalArray(self):
-        count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         generator = OrthogonalArray(bounds=bounds, levelsNumber=[2, 3, 4])
         generator.setDeterministic(True)
         result = generator.generate()
@@ -225,7 +216,7 @@ class TestGTDoE(unittest.TestCase):
 
     def test_ParametricStudy(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         generator = ParametricStudy(bounds=bounds, count=count)
         generator.setDeterministic(True)
         result = generator.generate()
@@ -241,7 +232,7 @@ class TestGTDoE(unittest.TestCase):
 
     def test_AdaptiveBlackbox(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         function = ot.NumericalMathFunction(['x1', 'x2', 'x3'], ['x1 + 2*x2 + 3*x3'])
         generator = AdaptiveBlackbox(bounds=bounds, count=count, blackbox=function)
         generator.setDeterministic(True)
@@ -266,10 +257,10 @@ class TestGTDoE(unittest.TestCase):
                 self.add_response(name=function.getOutputDescription()[0])
 
             def evaluate(self, points):
-                result = []
+                response = []
                 for point in points:
-                    result.append(list(function(point)))
-                return result
+                    response.append(list(function(point)))
+                return response
 
         p7_blackbox = P7_Blackbox()
         p7_result = gtdoe.Generator().generate(blackbox=p7_blackbox, bounds=p7_bounds, budget=count, options=p7_options)
@@ -284,7 +275,7 @@ class TestGTDoE(unittest.TestCase):
 
     def test_AdaptiveSample(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         init_x = np.random.random((20, 3))
         generator = AdaptiveSample(bounds=bounds, count=count, init_x=init_x)
         generator.setDeterministic(True)
@@ -297,7 +288,7 @@ class TestGTDoE(unittest.TestCase):
         p7_result = gtdoe.Generator().generate(bounds=p7_bounds, count=count, init_x=init_x, options=p7_options)
         self.compare_results(result, p7_result)
         # In case of specified init_y
-        init_y = [np.sum(x)*np.sum(x) for x in init_x]
+        init_y = [np.sum(x) * np.sum(x) for x in init_x]
         generator = AdaptiveSample(bounds=bounds, count=count, init_x=init_x, init_y=init_y)
         generator.setCriterion('IntegratedMseGainMaxVar')
         generator.setDeterministic(True)
@@ -321,12 +312,12 @@ class TestGTDoE(unittest.TestCase):
             generator.generate()
         with self.assertRaises(Exception):
             # Inconsistent initial set and bounds dimension
-            generator = AdaptiveSample(bounds=ot.Interval([-10]*3, [10]*3), count=count, init_x=[1, 2]*10)
+            generator = AdaptiveSample(bounds=ot.Interval([-10] * 3, [10] * 3), count=count, init_x=[1, 2] * 10)
             generator.generate()
 
     def test_AdaptiveLHS(self):
         count = 20
-        bounds = ot.Interval([-10]*3, [10]*3)
+        bounds = ot.Interval([-10] * 3, [10] * 3)
         init_x = np.random.random((20, 3))
         generator = AdaptiveLHS(bounds=bounds, count=count, init_x=init_x, useOptimized=True)
         # Default technique is LHS (useOptimized=False)

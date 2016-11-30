@@ -17,9 +17,9 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import openturns as ot
 import da.p7core.gtapprox as gtapprox
 import numpy as np
+import openturns as ot
 
 
 class ModelFunction(ot.NumericalMathFunction):
@@ -28,10 +28,6 @@ class ModelFunction(ot.NumericalMathFunction):
 
     Parameters
     ----------
-    inputs_dimension: positive int
-        The inputs dimension.
-    outputs_dimension: positive int
-        The outputs dimension.
     p7_model: :class:`~da.p7core.gtapprox.Model`
         p7core approximation model.
 
@@ -51,7 +47,8 @@ class ModelFunction(ot.NumericalMathFunction):
     >>> print function([2, 2])
     [7.95365]
     """
-    def __new__(self, p7_model):
+
+    def __new__(cls, p7_model):
         if not isinstance(p7_model, gtapprox.Model):
             raise TypeError('No p7 model given. Expected ' + str(gtapprox.Model) + ' object')
         # Create an intermediate function to fill execution methods for NumericalMathFunction
@@ -70,7 +67,6 @@ class ModelFunction(ot.NumericalMathFunction):
 
 
 class _Gradient(ot.NumericalMathGradientImplementation):
-
     def __init__(self, inputs_dimension, outputs_dimension, p7_model):
         self.__p7_model = p7_model
         self.__calls_number = 0

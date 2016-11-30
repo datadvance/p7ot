@@ -17,10 +17,10 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from da.p7core import blackbox
+from da.p7core import blackbox as p7blackbox
 
 
-class _Blackbox(blackbox.Blackbox):
+class _Blackbox(p7blackbox.Blackbox):
 
     def __init__(self, blackbox, bounds):
         super(_Blackbox, self).__init__()

@@ -17,13 +17,14 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from da.p7core import gtapprox
-import unittest
-import numpy as np
 import math
-from ..gtapprox import ModelFunction
-from ..gtopt import GTOpt
+import unittest
+
+import numpy as np
 import openturns as ot
+from da.p7core import gtapprox
+
+from ..gtapprox import ModelFunction
 
 
 class TestGTApprox(unittest.TestCase):
@@ -31,14 +32,14 @@ class TestGTApprox(unittest.TestCase):
     def sphere(self, inputs):
         output = 0
         for x in inputs:
-            output += x*x
+            output += x * x
         return output
 
     def rastrigin(self, inputs):
-        dimension = 10*len(inputs)
+        dimension = 10 * len(inputs)
         output = dimension
         for x in inputs:
-            output += x*x-10*math.cos(2*math.pi*x)
+            output += x * x - 10 * math.cos(2 * math.pi * x)
         return output
 
     def test_Model(self):
