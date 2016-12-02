@@ -123,7 +123,7 @@ DOCUMENTATION
 -------------
 
 For any additional information about algorithms used and options description see
-[pSeven Core Documentation](www.datadvance.net/product/macros/manual)
+[pSeven Core Documentation](http://www.datadvance.net/product/macros/manual)
 
 LICENSE
 -------

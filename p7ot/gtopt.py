@@ -426,7 +426,7 @@ class GTOpt(ot.OptimizationSolverImplementation):
         else:
             optimal_outputs = np.concatenate((optimal_f, optimal_c), axis=1)
         # Create optimization result object
-        # Absolute, constraint, residual and relative errors are not supported by p7 builder.
+        # Absolute, constraint, residual and relative errors are not supported by p7 optimizer.
         # For additional information about the solving process see getP7Result() and getP7History()
         if LooseVersion(ot.__version__) >= LooseVersion('1.8'):
             return ot.OptimizationResult(optimal_x[0], optimal_outputs[0], iteration_number, -1, -1, -1, -1,
